@@ -4,6 +4,7 @@ from aiogram.filters import CommandStart, StateFilter
 from aiogram.fsm.context import FSMContext
 
 from app.state import PDFBotStates
+from app.config import settings
 from utils.texts import WELCOME_TEXT, SINGLE_MODE_SELECTED
 
 router = Router()
@@ -151,6 +152,14 @@ async def collect_files(message: types.Message, state: FSMContext, scheduler, bo
     
     data = await state.get_data()
     pdf_list = data.get("pdf_list", [])
+
+    if len(pdf_list) >= settings.MAX_BATCH_SIZE:
+        return await message.answer(
+            f"⚠️ Batch limit reached! Maximum {settings.MAX_BATCH_SIZE} PDFs per batch.\n"
+            f"Please click 'Done' below to process the current batch.",
+            reply_markup=get_collecting_kb(len(pdf_list))
+        )
+
     pdf_list.append(message.document.file_id)
     await state.update_data(pdf_list=pdf_list)
 

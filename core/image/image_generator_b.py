@@ -7,46 +7,79 @@ from io import BytesIO
 
 from app.config import BASE_DIR
 from core.image.image_crop import crop_pdf_sections
-from core.pdf.pdf_data_extractor import extract_user_data
+from core.pdf.pdf_data_extractor import extract_user_data, clean_extracted_text
 from core.pdf.images_from_pdf import extract_images_from_pdf
 from core.image.image_bg_remove import get_image_without_bg
 
 # ======================
 # 🔹 Constants and Paths
 # ======================
-FONT_AMHARIC_DEFAULT = "/usr/share/fonts/truetype/sil-abyssinica/AbyssinicaSIL-Regular.ttf"
-FONT_ENGLISH_DEFAULT = "/usr/share/fonts/truetype/noto/NotoSans-Regular.ttf"
+LOCAL_FONTS_DIR = BASE_DIR / "fonts" / "truetype"
+_local_am = LOCAL_FONTS_DIR / "abyssinica" / "AbyssinicaSIL-Regular.ttf"
+_local_en = LOCAL_FONTS_DIR / "noto" / "NotoSans-Regular.ttf"
 
+FONT_AMHARIC_DEFAULT = str(_local_am) if _local_am.exists() else "/usr/share/fonts/truetype/sil-abyssinica/AbyssinicaSIL-Regular.ttf"
+FONT_ENGLISH_DEFAULT = str(_local_en) if _local_en.exists() else "/usr/share/fonts/truetype/noto/NotoSans-Regular.ttf"
 TEMPLATES_DIR = BASE_DIR / "data" / "templates"
-TEMPLATE_B_PATH = TEMPLATES_DIR / "template_black_cur.png"
+_tb_clean = TEMPLATES_DIR / "template_b.png"
+TEMPLATE_B_PATH = _tb_clean if _tb_clean.exists() else (TEMPLATES_DIR / "template_black_cur.png")
 
-# User provided coordinates for Template Black Cur (1280 x 390)
+MONTH_NAMES = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
+
+def format_gregorian_date_display(date_str: str, format_type: str = "DD/Mon/YYYY") -> str:
+    """
+    Format Gregorian date string into Ethiopian ID style with 3-letter English month.
+    e.g. '1997/11/30' -> '30/Nov/1997' (DD/Mon/YYYY) or '2034/Apr/07' (YYYY/Mon/DD).
+    """
+    if not date_str:
+        return ""
+    clean = str(date_str).strip().replace("-", "/")
+    parts = clean.split("/")
+    if len(parts) != 3:
+        return date_str
+    try:
+        if len(parts[0]) == 4:
+            year, month, day = int(parts[0]), int(parts[1]), int(parts[2])
+        else:
+            day, month, year = int(parts[0]), int(parts[1]), int(parts[2])
+        if not (1 <= month <= 12):
+            return date_str
+        mon_abbr = MONTH_NAMES[month - 1]
+        if format_type == "YYYY/Mon/DD":
+            return f"{year:04d}/{mon_abbr}/{day:02d}"
+        else:
+            return f"{day:02d}/{mon_abbr}/{year:04d}"
+    except Exception:
+        return date_str
+
+# Aligned coordinates for Template B (1280 x 390)
 TEMPLATE_B_FIELDS = {
     # Amharic Fields
-    "name_am": {"type": "text", "coords": (246, 115), "lang": "am", "size": 19},
-    
-    # English / Numeric / Combined Fields
-    "name_en": {"type": "text", "coords": (246, 140), "lang": "en", "size": 19},
-    "date_of_birth_et": {"type": "text", "coords": (246, 190), "lang": "am"}, # Mapping DOB Greg/Eth combo here
-    "sex_en": {"type": "text", "coords": (246, 232), "lang": "am"},
-    "expiry_date": {"type": "text", "coords": (246, 272), "lang": "am"},
-    "phone_number": {"type": "text", "coords": (688, 45), "lang": "en"},
-    "nationality": {"type": "text", "coords": (688, 100), "lang": "am"}, 
-    
-    # Address Fields - Coordinates provided by user
-    "region_am": {"type": "text", "coords": (688, 140), "lang": "am", "size": 17},
-    "region_en": {"type": "text", "coords": (688, 160), "lang": "am", "size": 17},
-    "zone_am": {"type": "text", "coords": (688, 180), "lang": "am", "size": 17},
-    "zone_en": {"type": "text", "coords": (688, 200), "lang": "am", "size": 17},
-    "woreda_am": {"type": "text", "coords": (688, 220), "lang": "am", "size": 17},
-    "woreda_en": {"type": "text", "coords": (688, 240), "lang": "am", "size": 17},
-    
+    "name_am": {"type": "text", "coords": (242, 112), "lang": "am", "size": 19},
+    "date_of_birth_et": {"type": "text", "coords": (242, 186), "lang": "am", "size": 17},
+    "sex_am": {"type": "text", "coords": (242, 222), "lang": "am", "size": 17},
+    "region_am": {"type": "text", "coords": (698, 148), "lang": "am", "size": 17},
+    "zone_am": {"type": "text", "coords": (698, 190), "lang": "am", "size": 17},
+    "woreda_am": {"type": "text", "coords": (698, 232), "lang": "am", "size": 17},
+
+    # English / Numeric Fields
+    "name_en": {"type": "text", "coords": (242, 138), "lang": "en", "size": 19},
+    "date_of_birth_greg": {"type": "text", "coords": (242, 205), "lang": "en", "size": 17},
+    "sex_en": {"type": "text", "coords": (314, 222), "lang": "en", "size": 17},
+    "expiry_date": {"type": "text", "coords": (242, 258), "lang": "am", "size": 17},
+    "phone_number": {"type": "text", "coords": (698, 52), "lang": "en", "size": 17},
+    "nationality": {"type": "text", "coords": (698, 105), "lang": "am", "size": 17},
+    "region_en": {"type": "text", "coords": (698, 168), "lang": "en", "size": 17},
+    "zone_en": {"type": "text", "coords": (698, 210), "lang": "en", "size": 17},
+    "woreda_en": {"type": "text", "coords": (698, 252), "lang": "en", "size": 17},
+    "fan_code": {"type": "text", "coords": (283, 301), "lang": "en", "size": 17},
+
     # Image fields (x1, y1, x2, y2)
-    "photo": {"type": "image", "coords": (25, 75, 240, 360)},
-    "barcode": {"type": "image", "coords": (277, 310, 460, 376)},
-    "small_image": {"type": "image", "coords": (500, 300, 570, 375)},
-    "fin_code": {"type": "image", "coords": (685, 309, 918, 341)},
-    "qrcode": {"type": "image", "coords": (940, 15, 1258, 338)},
+    "photo": {"type": "image", "coords": (25, 80, 230, 363)},
+    "qrcode": {"type": "image", "coords": (940, 25, 1265, 340)},
+    "fin_code": {"type": "image", "coords": (685, 308, 915, 342)},
+    "small_image": {"type": "image", "coords": (484, 260, 564, 380)},
+    "barcode": {"type": "image", "coords": (270, 290, 458, 355)},
 }
 
 # ======================
@@ -104,24 +137,18 @@ def generate_final_id_image_b(
     output_dir: Path,
     font_amharic: str = FONT_AMHARIC_DEFAULT,
     font_english: str = FONT_ENGLISH_DEFAULT,
-    font_size: int = 17, # Base size 17
-    boldness: float = 0.5, # Default boldness 0.5
-    color: bool = True,
+    font_size: int = 17,
+    boldness: float = 0.5,
     dpi: int = 600,
-    text_data: dict = None
+    color: bool = True
 ) -> bytes:
-    try:
-        # 1️⃣ Extract data
-        image_crops = crop_pdf_sections(pdf_path, output_dir, dpi=dpi)
-        second_images = extract_images_from_pdf(pdf_path)
-        
-        if text_data is None:
-            text_data = extract_user_data(pdf_path)
-    except Exception as e:
-        raise RuntimeError(f"Error extracting data from PDF: {e}")
+    """Generate final sharp ID image using Template B."""
+    # 1️⃣ Extract data and images in memory
+    text_data = extract_user_data(pdf_path)
+    image_crops = crop_pdf_sections(pdf_path, output_dir, dpi=dpi)
+    second_images = extract_images_from_pdf(pdf_path)
 
-    # Process photo
-    raw_photo = second_images.get("photo")
+    raw_photo = image_crops.get("photo")
     processed_photo = None
     if raw_photo is not None:
         try:
@@ -135,12 +162,16 @@ def generate_final_id_image_b(
                 processed_photo = Image.fromarray(cv2.cvtColor(raw_photo, cv2.COLOR_BGR2RGB)).convert("RGBA")
             else:
                 processed_photo = raw_photo.convert("RGBA")
+            if not color:
+                alpha = processed_photo.getchannel('A')
+                processed_photo = processed_photo.convert('L').convert('RGBA')
+                processed_photo.putalpha(alpha)
 
     image_crops["photo"] = processed_photo
     image_crops["small_image"] = processed_photo
     image_crops["qrcode"] = second_images.get("qrcode")
 
-    # 2️⃣ Load template Black Cur
+    # 2️⃣ Load base template
     template_img = cv2.imread(str(TEMPLATE_B_PATH))
     if template_img is None:
         raise FileNotFoundError(f"Template Black Cur not found at {TEMPLATE_B_PATH}")
@@ -160,53 +191,44 @@ def generate_final_id_image_b(
         font_am_large = ImageFont.load_default()
         font_en_large = ImageFont.load_default()
 
-    # 4️⃣ Format text data
+    # 4️⃣ Format text data (10-year validity, 3-letter English month format)
     today = date.today()
     e_year, e_month, e_day = gregorian_to_ethiopian(today.year, today.month, today.day)
-    date_of_issue_greg = f"{today.year}/{today.month:02d}/{today.day:02d}"
+    mon_abbr = MONTH_NAMES[today.month - 1]
+
+    date_of_issue_greg = f"{today.day:02d}/{mon_abbr}/{today.year}"
     date_of_issue_eth = f"{e_day:02d}/{e_month:02d}/{e_year}"
-    expiry_eth_date = f"{e_day:02d}/{e_month:02d}/{e_year + 8}"
-    expiry_date_greg = f"{today.year + 8}/{today.month:02d}/{today.day:02d}"
+    
+    expiry_eth_date = f"{e_year + 10:04d}/{e_month:02d}/{e_day:02d}"
+    expiry_date_greg = f"{today.year + 10:04d}/{mon_abbr}/{today.day:02d}"
     
     text_data["expiry_date"] = f"{expiry_eth_date} | {expiry_date_greg}"
-    text_data["nationality"] = "ኢትዮጵያዊ | Ethiopian"
-    
-    # Combine address fields
-    address_am = f"{text_data.get('region_am', '')}, {text_data.get('zone_am', '')}, {text_data.get('woreda_am', '')}"
-    text_data["address"] = address_am
+    text_data["nationality"] = "ኢትዮጵያ | Ethiopia"
 
     # 5️⃣ Draw text fields
     for key, field in TEMPLATE_B_FIELDS.items():
         if field["type"] != "text" or key not in text_data:
             continue
 
-        text_to_draw = str(text_data[key])
-        
-        # Determine font size for this field
-        current_font_size = field.get("size", font_size)
-        try:
-            f_am = ImageFont.truetype(font_amharic, current_font_size * scale)
-            f_en = ImageFont.truetype(font_english, current_font_size * scale)
-        except:
-            f_am = font_am_large
-            f_en = font_en_large
-            
-        font_use = f_am if field.get("lang") == "am" else f_en
-        x, y = field["coords"]
-        x *= scale
-        y *= scale
+        text_to_draw = clean_extracted_text(str(text_data[key]))
+        font_use = font_am_large if field.get("lang") == "am" else font_en_large
+        coords = field.get("coords", ())
+        if len(coords) != 2:
+            continue
+        x, y = coords[0] * scale, coords[1] * scale
 
-        if key == "date_of_birth_et":
-            dob_greg = text_data.get('date_of_birth_greg', '')
-            # Try to reformat dd/mm/yyyy to yyyy/mm/dd
-            if "/" in dob_greg:
-                parts = dob_greg.split("/")
-                if len(parts) == 3 and len(parts[2]) == 4: # dd/mm/yyyy
-                    dob_greg = f"{parts[2]}/{parts[1]}/{parts[0]}"
-            
-            text_to_draw = f"{text_data.get('date_of_birth_et', '')} | {dob_greg}"
-        elif key == "sex_en":
-            text_to_draw = f"{text_data.get('sex_am', '')} | {text_data.get('sex_en', '')}"
+        # Handle combined or special fields
+        if key == "sex_en":
+            am_text = text_data.get("sex_am", "")
+            am_width = draw_large.textlength(am_text, font=font_am_large)
+            x = (TEMPLATE_B_FIELDS["sex_am"]["coords"][0] * scale) + am_width + 10
+            text_to_draw = "| " + text_to_draw
+        elif key == "date_of_birth_greg":
+            continue
+        elif key == "date_of_birth_et" and "date_of_birth_greg" in text_data:
+            greg_formatted = format_gregorian_date_display(text_data["date_of_birth_greg"], "DD/Mon/YYYY")
+            text_to_draw = f"{text_data['date_of_birth_et']} | {greg_formatted}"
+            font_use = font_en_large
 
         draw_bold_text(draw_large, (x, y), text_to_draw, font_use, boldness=boldness * scale)
 
@@ -230,7 +252,10 @@ def generate_final_id_image_b(
 
             if pil_crop is None: continue
 
-            x1, y1, x2, y2 = field["coords"]
+            coords = field.get("coords", ())
+            if len(coords) != 4:
+                continue
+            x1, y1, x2, y2 = coords
             target_w, target_h = (x2 - x1) * scale, (y2 - y1) * scale
             pil_crop = pil_crop.resize((target_w, target_h), Image.Resampling.LANCZOS)
 
@@ -241,14 +266,15 @@ def generate_final_id_image_b(
         except Exception:
             pass
 
-    # 7️⃣ Draw vertical text (Consistent with Amharic font)
-    draw_vertical_text(img_large, (5, 165), date_of_issue_greg, font_amharic, 14, boldness=boldness, scale=scale)
-    draw_vertical_text(img_large, (5, 325), date_of_issue_eth, font_amharic, 14, boldness=boldness, scale=scale)
-
+    # 7️⃣ Draw vertical text
+    draw_vertical_text(img_large, (7, 156), date_of_issue_greg, font_english, 14, boldness=boldness, scale=scale)
+    draw_vertical_text(img_large, (7, 310), date_of_issue_eth, font_amharic, 14, boldness=boldness, scale=scale)
 
     # 8️⃣ Resize back to original dimensions for the user
     img_final = img_large.resize((w, h), Image.Resampling.LANCZOS)
+    if not color:
+        img_final = img_final.convert("L")
 
     buffer = BytesIO()
-    img_final.save(buffer, format="PNG", optimize=True)
+    img_final.save(buffer, format="PNG", optimize=True, dpi=(300, 300))
     return buffer.getvalue()

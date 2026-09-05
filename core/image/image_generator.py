@@ -7,46 +7,77 @@ from io import BytesIO
 
 from app.config import BASE_DIR
 from core.image.image_crop import crop_pdf_sections
-from core.pdf.pdf_data_extractor import extract_user_data  # Your OCR/text extraction function
+from core.pdf.pdf_data_extractor import extract_user_data, clean_extracted_text
 from core.pdf.images_from_pdf import extract_images_from_pdf
 from core.image.image_black_and_white_conv import get_grayscale_image
 from core.image.image_bg_remove import get_image_without_bg
 # ======================
 # 🔹 Constants and Paths
 # ======================
-FONT_AMHARIC_DEFAULT = "/usr/share/fonts/truetype/sil-abyssinica/AbyssinicaSIL-Regular.ttf"
-FONT_ENGLISH_DEFAULT = "/usr/share/fonts/truetype/noto/NotoSans-Regular.ttf"
+LOCAL_FONTS_DIR = BASE_DIR / "fonts" / "truetype"
+_local_am = LOCAL_FONTS_DIR / "abyssinica" / "AbyssinicaSIL-Regular.ttf"
+_local_en = LOCAL_FONTS_DIR / "noto" / "NotoSans-Regular.ttf"
+
+FONT_AMHARIC_DEFAULT = str(_local_am) if _local_am.exists() else "/usr/share/fonts/truetype/sil-abyssinica/AbyssinicaSIL-Regular.ttf"
+FONT_ENGLISH_DEFAULT = str(_local_en) if _local_en.exists() else "/usr/share/fonts/truetype/noto/NotoSans-Regular.ttf"
 
 TEMPLATES_DIR = BASE_DIR / "data" / "templates"
 TEMPLATE_PATH = TEMPLATES_DIR / "white_template_cur.png"
+MONTH_NAMES = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
+
+def format_gregorian_date_display(date_str: str, format_type: str = "DD/Mon/YYYY") -> str:
+    """
+    Format Gregorian date string into Ethiopian ID style with 3-letter English month.
+    e.g. '1997/11/30' -> '30/Nov/1997' (DD/Mon/YYYY) or '2034/Apr/07' (YYYY/Mon/DD).
+    """
+    if not date_str:
+        return ""
+    clean = str(date_str).strip().replace("-", "/")
+    parts = clean.split("/")
+    if len(parts) != 3:
+        return date_str
+    try:
+        if len(parts[0]) == 4:
+            year, month, day = int(parts[0]), int(parts[1]), int(parts[2])
+        else:
+            day, month, year = int(parts[0]), int(parts[1]), int(parts[2])
+        if not (1 <= month <= 12):
+            return date_str
+        mon_abbr = MONTH_NAMES[month - 1]
+        if format_type == "YYYY/Mon/DD":
+            return f"{year:04d}/{mon_abbr}/{day:02d}"
+        else:
+            return f"{day:02d}/{mon_abbr}/{year:04d}"
+    except Exception:
+        return date_str
 
 TEMPLATE_FIELDS = {
     # Amharic Fields
     "name_am": {"type": "text", "coords": (242, 112), "lang": "am", "size": 19},
-    "date_of_birth_et": {"type": "text", "coords": (242, 185), "lang": "am", "size": 17},
-    "sex_am": {"type": "text", "coords": (242, 220), "lang": "am", "size": 17},
-    "region_am": {"type": "text", "coords": (698, 144), "lang": "am", "size": 17},
-    "zone_am": {"type": "text", "coords": (698, 186), "lang": "am", "size": 17},
-    "woreda_am": {"type": "text", "coords": (698, 233), "lang": "am", "size": 17},
+    "date_of_birth_et": {"type": "text", "coords": (242, 186), "lang": "am", "size": 17},
+    "sex_am": {"type": "text", "coords": (242, 222), "lang": "am", "size": 17},
+    "region_am": {"type": "text", "coords": (698, 148), "lang": "am", "size": 17},
+    "zone_am": {"type": "text", "coords": (698, 190), "lang": "am", "size": 17},
+    "woreda_am": {"type": "text", "coords": (698, 232), "lang": "am", "size": 17},
 
     # English / Numeric Fields
     "name_en": {"type": "text", "coords": (242, 138), "lang": "en", "size": 19},
-    "date_of_birth_greg": {"type": "text", "coords": (242, 205), "lang": "am", "size": 17},
-    "sex_en": {"type": "text", "coords": (314, 220), "lang": "am", "size": 17},
-    "expiry_date": {"type": "text", "coords": (242, 256), "lang": "am", "size": 17},
-    "phone_number": {"type": "text", "coords": (698, 50), "lang": "en", "size": 17},
-    "nationality": {"type": "text", "coords": (698, 100), "lang": "am", "size": 17},
-    "region_en": {"type": "text", "coords": (698, 165), "lang": "am", "size": 17},
-    "zone_en": {"type": "text", "coords": (698, 209), "lang": "am", "size": 17},
-    "woreda_en": {"type": "text", "coords": (698, 254), "lang": "am", "size": 17},
+    "date_of_birth_greg": {"type": "text", "coords": (242, 205), "lang": "en", "size": 17},
+    "sex_en": {"type": "text", "coords": (314, 222), "lang": "en", "size": 17},
+    "expiry_date": {"type": "text", "coords": (242, 258), "lang": "am", "size": 17},
+    "phone_number": {"type": "text", "coords": (698, 52), "lang": "en", "size": 17},
+    "nationality": {"type": "text", "coords": (698, 105), "lang": "am", "size": 17},
+    "region_en": {"type": "text", "coords": (698, 168), "lang": "en", "size": 17},
+    "zone_en": {"type": "text", "coords": (698, 210), "lang": "en", "size": 17},
+    "woreda_en": {"type": "text", "coords": (698, 252), "lang": "en", "size": 17},
     "fan_code": {"type": "text", "coords": (283, 301), "lang": "en", "size": 17},
 
     # Image fields
     "photo": {"type": "image", "coords": (25, 80, 230, 363)},
-    "qrcode": {"type": "image", "coords": (943, 25, 1265, 338)},
-    "fin_code": {"type": "image", "coords": (687, 313, 890, 337)},
-    "small_image": {"type": "image", "coords": (501, 295, 560, 354)},
-    "barcode": {"type": "image", "coords": (273, 290, 450, 347)},
+    "qrcode": {"type": "image", "coords": (940, 25, 1265, 340)},
+    "fin_code": {"type": "image", "coords": (685, 308, 915, 342)},
+    "small_image": {"type": "image", "coords": (484, 260, 564, 380)},
+    "barcode": {"type": "image", "coords": (270, 290, 458, 355)},
 }
 
 # ======================
@@ -114,35 +145,36 @@ def generate_final_id_image(
     font_amharic: str = FONT_AMHARIC_DEFAULT,
     font_english: str = FONT_ENGLISH_DEFAULT,
     font_size: int = 17, # Balanced default 17
-    boldness: float = 0.5, # Default boldness to match Template B
-    color : bool = True,
+    boldness: float = 0.5,
     dpi: int = 600,
-    text_data: dict = None
+    color: bool = True
 ) -> bytes:
-    """Generate a final sharp ID image (PNG bytes) from PDF data."""
-    try:
-        # 1️⃣ Extract cropped images and text
-        image_crops = crop_pdf_sections(pdf_path, output_dir, dpi=dpi)
-        second_images = extract_images_from_pdf(pdf_path)
+    """
+    Generate an Ethiopian ID card from a PDF.
+    
+    Args:
+        pdf_path: Path to the input PDF file
+        output_dir: Directory to save temporary crops (if needed)
+        font_amharic: Path to Amharic font
+        font_english: Path to English font
+        font_size: Base font size
+        boldness: Text stroke boldness multiplier
+        dpi: Rendering DPI
+        color: True for Color, False for Black and White
         
-        if text_data is None:
-            text_data = extract_user_data(pdf_path)
-    except Exception as e:
-        raise RuntimeError(f"Error extracting data from PDF: {e}")
+    Returns:
+        bytes: High quality PNG image bytes of the ID card
+    """
+    # 1️⃣ Extract data and images in memory
+    text_data = extract_user_data(pdf_path)
+    image_crops = crop_pdf_sections(pdf_path, output_dir, dpi=dpi)
+    second_images = extract_images_from_pdf(pdf_path)
 
-    # --- OPTIMIZATION: Process photo once and reuse ---
-    raw_photo = second_images.get("photo")
+    raw_photo = image_crops.get("photo")
     processed_photo = None
     if raw_photo is not None:
         try:
-            # Remove BG ONCE
             processed_photo = get_image_without_bg(raw_photo)
-            
-            # Apply grayscale if needed (common for both)
-            if not color:
-                alpha = processed_photo.getchannel('A')
-                processed_photo = processed_photo.convert('L').convert('RGBA')
-                processed_photo.putalpha(alpha)
         except Exception:
             if isinstance(raw_photo, np.ndarray):
                 processed_photo = Image.fromarray(cv2.cvtColor(raw_photo, cv2.COLOR_BGR2RGB)).convert("RGBA")
@@ -175,26 +207,31 @@ def generate_final_id_image(
     except Exception:
         font_en_large = font_am_large
 
-    # 4️⃣ Generate date data
+    # 4️⃣ Generate date data (10-year validity, 3-letter English month format)
     today = date.today()
     e_year, e_month, e_day = gregorian_to_ethiopian(today.year, today.month, today.day)
-    date_of_issue_greg = f"{today.day:02d}/{today.month:02d}/{today.year}"
+    mon_abbr = MONTH_NAMES[today.month - 1]
+    
+    date_of_issue_greg = f"{today.day:02d}/{mon_abbr}/{today.year}"
     date_of_issue_eth = f"{e_day:02d}/{e_month:02d}/{e_year}"
-    expiry_eth_date = f"{e_day:02d}/{e_month:02d}/{e_year + 8}"
-    expiry_date_greg = f"{today.day:02d}/{today.month:02d}/{today.year + 8}"
+    
+    expiry_eth_date = f"{e_year + 10:04d}/{e_month:02d}/{e_day:02d}"
+    expiry_date_greg = f"{today.year + 10:04d}/{mon_abbr}/{today.day:02d}"
+    
     text_data["expiry_date"] = f"{expiry_eth_date} | {expiry_date_greg}"
-    text_data["nationality"] = "ኢትዮጵያዊ | Ethiopian"
+    text_data["nationality"] = "ኢትዮጵያ | Ethiopia"
 
     # 5️⃣ Draw text fields
     for key, field in TEMPLATE_FIELDS.items():
         if field["type"] != "text" or key not in text_data:
             continue
 
-        text_to_draw = str(text_data[key])
+        text_to_draw = clean_extracted_text(str(text_data[key]))
         font_use = font_am_large if field.get("lang") == "am" else font_en_large
-        x, y = field["coords"]
-        x *= scale
-        y *= scale
+        coords = field.get("coords", ())
+        if len(coords) != 2:
+            continue
+        x, y = coords[0] * scale, coords[1] * scale
 
         # Handle combined or special fields
         if key == "sex_en":
@@ -205,7 +242,8 @@ def generate_final_id_image(
         elif key == "date_of_birth_greg":
             continue
         elif key == "date_of_birth_et" and "date_of_birth_greg" in text_data:
-            text_to_draw = f"{text_data['date_of_birth_et']} | {text_data['date_of_birth_greg']}"
+            greg_formatted = format_gregorian_date_display(text_data["date_of_birth_greg"], "DD/Mon/YYYY")
+            text_to_draw = f"{text_data['date_of_birth_et']} | {greg_formatted}"
             font_use = font_en_large
 
         draw_bold_text(draw_large, (x, y), text_to_draw, font_use, boldness=boldness * scale)
@@ -236,7 +274,10 @@ def generate_final_id_image(
             if pil_crop is None: continue
 
             # --- 2. RESIZE ---
-            x1, y1, x2, y2 = field["coords"]
+            coords = field.get("coords", ())
+            if len(coords) != 4:
+                continue
+            x1, y1, x2, y2 = coords
             target_w, target_h = (x2 - x1) * scale, (y2 - y1) * scale
             pil_crop = pil_crop.resize((target_w, target_h), Image.Resampling.LANCZOS)
 
@@ -251,8 +292,8 @@ def generate_final_id_image(
         except Exception:
             pass
 
-    # 7️⃣ Draw vertical date text (both) - Consistent with Amharic font size 14
-    draw_vertical_text(img_large, (7, 156), date_of_issue_greg, font_amharic, 14, boldness=boldness, scale=scale)
+    # 7️⃣ Draw vertical date text (both)
+    draw_vertical_text(img_large, (7, 156), date_of_issue_greg, font_english, 14, boldness=boldness, scale=scale)
     draw_vertical_text(img_large, (7, 310), date_of_issue_eth, font_amharic, 14, boldness=boldness, scale=scale)
 
     # 8️⃣ Resize back to original dimensions for the user

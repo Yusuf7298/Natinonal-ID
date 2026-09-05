@@ -1,9 +1,10 @@
 # app/routers/webhook.py
 import asyncio
-from fastapi import APIRouter, Request, Depends
+from fastapi import APIRouter, Request, Depends, HTTPException, status
 from aiogram import types
 from app.instances import bot, dp, scheduler
 from app.dependencies import get_processing_service
+from app.config import settings
 
 router = APIRouter()
 @router.post("/webhook")
@@ -11,6 +12,12 @@ async def telegram_webhook(
     request: Request, 
     processor=Depends(get_processing_service)
 ):
+    # Security: Verify Telegram Webhook Secret Token if configured
+    if settings.TELEGRAM_WEBHOOK_SECRET:
+        secret_header = request.headers.get("X-Telegram-Bot-Api-Secret-Token")
+        if secret_header != settings.TELEGRAM_WEBHOOK_SECRET:
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Forbidden")
+
     try:
         update_data = await request.json()
         

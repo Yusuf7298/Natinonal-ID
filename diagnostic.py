@@ -1,21 +1,15 @@
 import sys
 import os
 from pathlib import Path
-
-# Add project root to sys.path
 sys.path.append(os.getcwd())
-
 from core.image.image_generator import generate_final_id_image
 import tempfile
-
 def test_gen():
     try:
-        # We need a sample PDF to test. Let's see if one exists in data/
         sample_pdf = Path("data/sample.pdf")
         if not sample_pdf.exists():
             print("No sample PDF found at data/sample.pdf")
             return
-        
         with tempfile.TemporaryDirectory() as tmpdir:
             out_dir = Path(tmpdir)
             print("Starting test generation...")

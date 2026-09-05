@@ -1,5 +1,4 @@
 from aiogram.fsm.state import State, StatesGroup
-
 class PDFBotStates(StatesGroup):
     choosing_mode = State()
     choosing_color = State()

@@ -1,41 +1,63 @@
-# app/main.py
-import uvicorn
+import sys
+import asyncio
 from contextlib import asynccontextmanager
 from fastapi import FastAPI
-
-from app.instances import bot, dp, scheduler  # Import from instances, NOT main
-from app.routers import webhook
+import uvicorn
+if sys.stdout and hasattr(sys.stdout, "reconfigure"):
+    sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+if sys.stderr and hasattr(sys.stderr, "reconfigure"):
+    sys.stderr.reconfigure(encoding="utf-8", errors="replace")
+from app.instances import bot, dp, scheduler, processor
 from app.routers.bot_handlers import router as bot_router
 from app.config import settings
 from app.middlewares.membership import MembershipMiddleware
-
+polling_task: asyncio.Task | None = None
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # STARTUP
     scheduler.start()
-
-    # Register Middlewares
     dp.update.outer_middleware(MembershipMiddleware())
-    
     dp.include_router(bot_router)
-    
-    webhook_url = f"{settings.WEBHOOK_URL}/webhook"
-    await bot.set_webhook(url=webhook_url, drop_pending_updates=False)
-    
-    # Store in state for easy access if needed
-    app.state.bot = bot
-    app.state.dp = dp
-    app.state.scheduler = scheduler
-    
-    print(f"🚀 Bot started. Webhook: {webhook_url}")
+    print("Clearing any existing webhook so polling can receive updates...", flush=True)
+    await bot.delete_webhook(drop_pending_updates=True)
+    me = await bot.get_me()
+    print(f"Bot @{me.username} is now running in POLLING mode!", flush=True)
+    global polling_task
+    polling_task = asyncio.create_task(
+        dp.start_polling(bot, processor=processor, scheduler=scheduler, dp=dp)
+    )
     yield
-    
-    # SHUTDOWN
+    print("Shutting down bot...", flush=True)
     scheduler.shutdown()
+    await dp.stop_polling()
+    if polling_task:
+        polling_task.cancel()
+        try:
+            await polling_task
+        except asyncio.CancelledError:
+            pass
     await bot.session.close()
-
 app = FastAPI(title="National ID Bot", lifespan=lifespan)
-app.include_router(webhook.router)
-
+@app.get("/")
+@app.get("/health")
+async def health():
+    return {"status": "ok", "mode": "polling", "bot": settings.BOT_NAME}
+async def run_standalone():
+    print("Clearing any existing webhook so polling can receive updates...", flush=True)
+    await bot.delete_webhook(drop_pending_updates=True)
+    scheduler.start()
+    dp.update.outer_middleware(MembershipMiddleware())
+    dp.include_router(bot_router)
+    me = await bot.get_me()
+    print(f"Bot @{me.username} is now running in POLLING mode!", flush=True)
+    print(f"Open Telegram, find @{me.username} and send /start to test.", flush=True)
+    print("Press Ctrl+C in this terminal to stop.", flush=True)
+    try:
+        await dp.start_polling(bot, processor=processor, scheduler=scheduler, dp=dp)
+    finally:
+        scheduler.shutdown()
+        await bot.session.close()
 if __name__ == "__main__":
-    uvicorn.run("app.main:app", host="0.0.0.0", port=8000, reload=True)
+    try:
+        asyncio.run(run_standalone())
+    except (KeyboardInterrupt, SystemExit):
+        print("\nBot stopped.")

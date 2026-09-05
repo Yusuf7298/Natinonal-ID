@@ -9,8 +9,10 @@ __pycache__/
 .env
 storage/uploads/*
 storage/outputs/*
+storage/temp/*
 !storage/uploads/.gitkeep
 !storage/outputs/.gitkeep
+!storage/temp/.gitkeep
 .vscode/
 .idea/
 *.swp
