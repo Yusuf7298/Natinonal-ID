@@ -304,7 +304,6 @@ class ProcessingService:
                         await self.bot.send_document(
                             chat_id=chat_id,
                             document=BufferedInputFile(out_bytes, filename=f"A4_IDs_PAGE_{p+1}.png"),
-                            caption=f"✅ A4 Page {p+1} ({current_batch_size} IDs)\nLayout: [Back | Front] (MIRRORED)\nType: {'Color' if color else 'B&W'}",
                             request_timeout=300
                         )
                         doc_sent = True
