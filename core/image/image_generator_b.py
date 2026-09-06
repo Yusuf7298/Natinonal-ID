@@ -68,7 +68,7 @@ TEMPLATE_B_FIELDS = {
     "name_en": {"type": "text", "coords": (242, 132), "lang": "en", "size": 19},
     "date_of_birth_greg": {"type": "text", "coords": (242, 193), "lang": "en", "size": 17},
     "sex_en": {"type": "text", "coords": (314, 236), "lang": "en", "size": 17},
-    "expiry_date": {"type": "text", "coords": (242, 273), "lang": "am", "size": 17},
+    "expiry_date": {"type": "text", "coords": (242, 268), "lang": "am", "size": 16},
     "phone_number": {"type": "text", "coords": (698, 52), "lang": "en", "size": 17},
     "nationality": {"type": "text", "coords": (698, 105), "lang": "am", "size": 17},
     "region_en": {"type": "text", "coords": (698, 168), "lang": "en", "size": 17},
@@ -155,11 +155,19 @@ def generate_final_id_image_b(
     if raw_photo is not None:
         try:
             processed_photo = get_image_without_bg(raw_photo)
+            if not color and processed_photo is not None:
+                alpha = processed_photo.getchannel('A')
+                processed_photo = processed_photo.convert('L').convert('RGBA')
+                processed_photo.putalpha(alpha)
         except Exception:
             if isinstance(raw_photo, np.ndarray):
                 processed_photo = Image.fromarray(cv2.cvtColor(raw_photo, cv2.COLOR_BGR2RGB)).convert("RGBA")
             else:
                 processed_photo = raw_photo.convert("RGBA")
+            if not color and processed_photo is not None:
+                alpha = processed_photo.getchannel('A')
+                processed_photo = processed_photo.convert('L').convert('RGBA')
+                processed_photo.putalpha(alpha)
 
     image_crops["photo"] = processed_photo
     image_crops["small_image"] = processed_photo
