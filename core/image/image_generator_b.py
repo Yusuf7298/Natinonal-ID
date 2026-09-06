@@ -155,19 +155,11 @@ def generate_final_id_image_b(
     if raw_photo is not None:
         try:
             processed_photo = get_image_without_bg(raw_photo)
-            if not color:
-                alpha = processed_photo.getchannel('A')
-                processed_photo = processed_photo.convert('L').convert('RGBA')
-                processed_photo.putalpha(alpha)
         except Exception:
             if isinstance(raw_photo, np.ndarray):
                 processed_photo = Image.fromarray(cv2.cvtColor(raw_photo, cv2.COLOR_BGR2RGB)).convert("RGBA")
             else:
                 processed_photo = raw_photo.convert("RGBA")
-            if not color:
-                alpha = processed_photo.getchannel('A')
-                processed_photo = processed_photo.convert('L').convert('RGBA')
-                processed_photo.putalpha(alpha)
 
     image_crops["photo"] = processed_photo
     image_crops["small_image"] = processed_photo
@@ -195,15 +187,16 @@ def generate_final_id_image_b(
         font_am_large = ImageFont.load_default()
         font_en_large = ImageFont.load_default()
 
-    # 4️⃣ Format text data (8-year validity, numeric format)
+    # 4️⃣ Format text data (8-year validity)
     today = date.today()
     e_year, e_month, e_day = gregorian_to_ethiopian(today.year, today.month, today.day)
+    mon_abbr = MONTH_NAMES[today.month - 1]
 
-    date_of_issue_greg = f"{today.year:04d}/{today.month:02d}/{today.day:02d}"
-    date_of_issue_eth = f"{e_day:02d}/{e_month:02d}/{e_year:04d}"
+    date_of_issue_greg = f"- {today.day:02d}/{mon_abbr}/{today.year}"
+    date_of_issue_eth = f"- {e_day:02d}/{e_month:02d}/{e_year:04d}"
     
     expiry_eth_date = f"{e_day:02d}/{e_month:02d}/{e_year + 8:04d}"
-    expiry_date_greg = f"{today.year + 8:04d}/{today.month:02d}/{today.day:02d}"
+    expiry_date_greg = f"{today.year + 8:04d}/{mon_abbr}/{today.day:02d}"
     
     text_data["expiry_date"] = f"{expiry_eth_date} | {expiry_date_greg}"
     text_data["nationality"] = "ኢትዮጵያዊ | Ethiopian"
@@ -275,8 +268,6 @@ def generate_final_id_image_b(
 
     # 8️⃣ Resize back to original dimensions for the user
     img_final = img_large.resize((w, h), Image.Resampling.LANCZOS)
-    if not color:
-        img_final = img_final.convert("L")
 
     buffer = BytesIO()
     img_final.save(buffer, format="PNG", optimize=True, dpi=(300, 300))
