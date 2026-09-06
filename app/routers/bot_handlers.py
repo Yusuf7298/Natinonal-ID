@@ -19,8 +19,10 @@ async def auto_process_timeout(user_id: int, bot, dp, processor):
     if current_state == PDFBotStates.waiting_multiple_pdfs:
         files = state_data.get("pdf_list", [])
         if files:
+            is_color = state_data.get("is_color", True)
+            template = state_data.get("template", "A")
             await bot.send_message(chat_id=user_id, text="⏳ 10 minutes passed! Processing your PDFs automatically...")
-            await processor.process_multiple_pdfs(files, user_id)
+            await processor.process_multiple_pdfs(files, user_id, color=is_color, template=template)
         await state_context.clear()
 
 # --- HANDLERS ---

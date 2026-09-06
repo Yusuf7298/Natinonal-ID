@@ -37,14 +37,14 @@ def test_generation():
         print(f"Generated image size: {width}x{height}")
         target_w, target_h = 1280, 390
         if width == target_w and height == target_h:
-            print(f"✅ SUCCESS: Dimensions match White Template Cur target ({target_w}x{target_h})")
+            print(f"[OK] SUCCESS: Dimensions match White Template Cur target ({target_w}x{target_h})")
             save_path = "storage/test_result_high_res.png"
             img.save(save_path)
             print(f"Saved for verification to: {save_path}")
         else:
-            print(f"❌ FAILURE: Expected {target_w}x{target_h}, got {width}x{height}")
+            print(f"[FAIL] FAILURE: Expected {target_w}x{target_h}, got {width}x{height}")
     except Exception as e:
-        print(f"❌ Error during generation: {e}")
+        print(f"[ERROR] Error during generation: {e}")
         import traceback
         traceback.print_exc()
 

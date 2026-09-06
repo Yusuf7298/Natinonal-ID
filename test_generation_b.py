@@ -40,17 +40,17 @@ def test_generation_b():
         print(f"Generated Template Black Cur image size: {width}x{height}")
         target_w, target_h = 1280, 390
         if width == target_w and height == target_h:
-            print(f"✅ SUCCESS: Dimensions match Template Black Cur target ({target_w}x{target_h})")
+            print(f"[OK] SUCCESS: Dimensions match Template Black Cur target ({target_w}x{target_h})")
             save_path = "storage/test_result_template_b.png"
             img.save(save_path)
             print(f"Saved for verification to: {os.path.abspath(save_path)}")
         else:
-            print(f"❌ FAILURE: Expected {target_w}x{target_h}, got {width}x{height}")
+            print(f"[FAIL] FAILURE: Expected {target_w}x{target_h}, got {width}x{height}")
             save_path = "storage/test_result_template_b_fail.png"
             img.save(save_path)
             print(f"Saved failed result to: {os.path.abspath(save_path)}")
     except Exception as e:
-        print(f"❌ Error during generation: {e}")
+        print(f"[ERROR] Error during generation: {e}")
         import traceback
         traceback.print_exc()
 

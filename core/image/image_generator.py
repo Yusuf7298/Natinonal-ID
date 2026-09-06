@@ -25,10 +25,10 @@ TEMPLATES_DIR = BASE_DIR / "data" / "templates"
 TEMPLATE_PATH = TEMPLATES_DIR / "white_template_cur.png"
 MONTH_NAMES = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
 
-def format_gregorian_date_display(date_str: str, format_type: str = "DD/Mon/YYYY") -> str:
+def format_gregorian_date_display(date_str: str, format_type: str = "YYYY/MM/DD") -> str:
     """
-    Format Gregorian date string into Ethiopian ID style with 3-letter English month.
-    e.g. '1997/11/30' -> '30/Nov/1997' (DD/Mon/YYYY) or '2034/Apr/07' (YYYY/Mon/DD).
+    Format Gregorian date string into Ethiopian ID style.
+    e.g. '1973/12/13' or '1997-11-30' -> '1997/11/30' (YYYY/MM/DD).
     """
     if not date_str:
         return ""
@@ -43,28 +43,30 @@ def format_gregorian_date_display(date_str: str, format_type: str = "DD/Mon/YYYY
             day, month, year = int(parts[0]), int(parts[1]), int(parts[2])
         if not (1 <= month <= 12):
             return date_str
-        mon_abbr = MONTH_NAMES[month - 1]
-        if format_type == "YYYY/Mon/DD":
-            return f"{year:04d}/{mon_abbr}/{day:02d}"
-        else:
+        if format_type == "YYYY/MM/DD":
+            return f"{year:04d}/{month:02d}/{day:02d}"
+        elif format_type == "DD/Mon/YYYY":
+            mon_abbr = MONTH_NAMES[month - 1]
             return f"{day:02d}/{mon_abbr}/{year:04d}"
+        else:
+            return f"{day:02d}/{month:02d}/{year:04d}"
     except Exception:
         return date_str
 
 TEMPLATE_FIELDS = {
     # Amharic Fields
-    "name_am": {"type": "text", "coords": (242, 112), "lang": "am", "size": 19},
-    "date_of_birth_et": {"type": "text", "coords": (242, 186), "lang": "am", "size": 17},
-    "sex_am": {"type": "text", "coords": (242, 222), "lang": "am", "size": 17},
+    "name_am": {"type": "text", "coords": (242, 103), "lang": "am", "size": 19},
+    "date_of_birth_et": {"type": "text", "coords": (242, 193), "lang": "am", "size": 17},
+    "sex_am": {"type": "text", "coords": (242, 236), "lang": "am", "size": 17},
     "region_am": {"type": "text", "coords": (698, 148), "lang": "am", "size": 17},
     "zone_am": {"type": "text", "coords": (698, 190), "lang": "am", "size": 17},
     "woreda_am": {"type": "text", "coords": (698, 232), "lang": "am", "size": 17},
 
     # English / Numeric Fields
-    "name_en": {"type": "text", "coords": (242, 138), "lang": "en", "size": 19},
-    "date_of_birth_greg": {"type": "text", "coords": (242, 205), "lang": "en", "size": 17},
-    "sex_en": {"type": "text", "coords": (314, 222), "lang": "en", "size": 17},
-    "expiry_date": {"type": "text", "coords": (242, 258), "lang": "am", "size": 17},
+    "name_en": {"type": "text", "coords": (242, 132), "lang": "en", "size": 19},
+    "date_of_birth_greg": {"type": "text", "coords": (242, 193), "lang": "en", "size": 17},
+    "sex_en": {"type": "text", "coords": (314, 236), "lang": "en", "size": 17},
+    "expiry_date": {"type": "text", "coords": (242, 273), "lang": "am", "size": 17},
     "phone_number": {"type": "text", "coords": (698, 52), "lang": "en", "size": 17},
     "nationality": {"type": "text", "coords": (698, 105), "lang": "am", "size": 17},
     "region_en": {"type": "text", "coords": (698, 168), "lang": "en", "size": 17},
@@ -175,11 +177,19 @@ def generate_final_id_image(
     if raw_photo is not None:
         try:
             processed_photo = get_image_without_bg(raw_photo)
+            if not color and processed_photo is not None:
+                alpha = processed_photo.getchannel('A')
+                processed_photo = processed_photo.convert('L').convert('RGBA')
+                processed_photo.putalpha(alpha)
         except Exception:
             if isinstance(raw_photo, np.ndarray):
                 processed_photo = Image.fromarray(cv2.cvtColor(raw_photo, cv2.COLOR_BGR2RGB)).convert("RGBA")
             else:
                 processed_photo = raw_photo.convert("RGBA")
+            if not color and processed_photo is not None:
+                alpha = processed_photo.getchannel('A')
+                processed_photo = processed_photo.convert('L').convert('RGBA')
+                processed_photo.putalpha(alpha)
 
     image_crops["photo"] = processed_photo
     image_crops["small_image"] = processed_photo
@@ -207,19 +217,18 @@ def generate_final_id_image(
     except Exception:
         font_en_large = font_am_large
 
-    # 4️⃣ Generate date data (10-year validity, 3-letter English month format)
+    # 4️⃣ Generate date data (8-year validity, numeric format)
     today = date.today()
     e_year, e_month, e_day = gregorian_to_ethiopian(today.year, today.month, today.day)
-    mon_abbr = MONTH_NAMES[today.month - 1]
     
-    date_of_issue_greg = f"{today.day:02d}/{mon_abbr}/{today.year}"
-    date_of_issue_eth = f"{e_day:02d}/{e_month:02d}/{e_year}"
+    date_of_issue_greg = f"{today.year:04d}/{today.month:02d}/{today.day:02d}"
+    date_of_issue_eth = f"{e_day:02d}/{e_month:02d}/{e_year:04d}"
     
-    expiry_eth_date = f"{e_year + 10:04d}/{e_month:02d}/{e_day:02d}"
-    expiry_date_greg = f"{today.year + 10:04d}/{mon_abbr}/{today.day:02d}"
+    expiry_eth_date = f"{e_day:02d}/{e_month:02d}/{e_year + 8:04d}"
+    expiry_date_greg = f"{today.year + 8:04d}/{today.month:02d}/{today.day:02d}"
     
     text_data["expiry_date"] = f"{expiry_eth_date} | {expiry_date_greg}"
-    text_data["nationality"] = "ኢትዮጵያ | Ethiopia"
+    text_data["nationality"] = "ኢትዮጵያዊ | Ethiopian"
 
     # 5️⃣ Draw text fields
     for key, field in TEMPLATE_FIELDS.items():
@@ -242,7 +251,7 @@ def generate_final_id_image(
         elif key == "date_of_birth_greg":
             continue
         elif key == "date_of_birth_et" and "date_of_birth_greg" in text_data:
-            greg_formatted = format_gregorian_date_display(text_data["date_of_birth_greg"], "DD/Mon/YYYY")
+            greg_formatted = format_gregorian_date_display(text_data["date_of_birth_greg"], "YYYY/MM/DD")
             text_to_draw = f"{text_data['date_of_birth_et']} | {greg_formatted}"
             font_use = font_en_large
 
