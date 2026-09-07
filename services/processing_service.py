@@ -18,30 +18,28 @@ from core.image.image_generator import generate_final_id_image
 from core.image.image_generator_b import generate_final_id_image_b
 from core.pdf.extractor import get_pdf_metadata
 from app.config import settings
-def _download_via_http(url: str, expected_size: int = 0, timeout: int = 45, max_retries: int = 5) -> bytes:
-    downloaded = bytearray()
+async def _download_via_http(url: str, expected_size: int = 0, timeout: int = 90, max_retries: int = 4) -> bytes:
+    headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"}
+    client_timeout = httpx.Timeout(connect=25.0, read=float(timeout), write=25.0, pool=30.0)
     for attempt in range(max_retries):
         try:
-            headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"}
-            if downloaded:
-                headers["Range"] = f"bytes={len(downloaded)}-"
-                print(f"Resuming download from byte {len(downloaded)} (attempt {attempt + 1}/{max_retries})...", flush=True)
-            req = urllib.request.Request(url, headers=headers)
-            with urllib.request.urlopen(req, timeout=timeout) as resp:
-                while True:
-                    chunk = resp.read(65536) 
-                    if not chunk:
-                        return bytes(downloaded)
-                    downloaded.extend(chunk)
-                    if expected_size and len(downloaded) >= expected_size:
-                        return bytes(downloaded)
+            async with httpx.AsyncClient(timeout=client_timeout, follow_redirects=True) as client:
+                async with client.stream("GET", url, headers=headers) as resp:
+                    resp.raise_for_status()
+                    total_bytes = int(resp.headers.get("Content-Length", 0)) or expected_size
+                    downloaded = bytearray()
+                    async for chunk in resp.aiter_bytes(chunk_size=65536):
+                        downloaded.extend(chunk)
+                    if total_bytes and len(downloaded) < total_bytes:
+                        raise ValueError(f"Incomplete download: received {len(downloaded)} of {total_bytes} bytes")
+                    return bytes(downloaded)
         except Exception as e:
             err_name = type(e).__name__
-            print(f"Connection interrupted at {len(downloaded)} bytes ({err_name}). Auto-resuming...", flush=True)
-            time.sleep(1)
-    if downloaded:
-        return bytes(downloaded)
-    raise ConnectionError("Failed to download file after multiple resume attempts.")
+            print(f"HTTP download attempt {attempt + 1}/{max_retries} interrupted ({err_name}: {e}). Retrying in {(attempt + 1) * 2}s...", flush=True)
+            if attempt < max_retries - 1:
+                await asyncio.sleep((attempt + 1) * 2)
+            else:
+                raise
 
 class ProcessingService:
     def __init__(self, bot: Bot):
@@ -61,7 +59,9 @@ class ProcessingService:
                 file_url = f"https://api.telegram.org/file/bot{self.bot.token}/{file.file_path}"
                 try:
                     print(f"Downloading file ({file_size / 1024:.1f} KB)...", flush=True)
-                    data = await asyncio.to_thread(_download_via_http, file_url, file_size)
+                    data = await _download_via_http(file_url, file_size)
+                    if file_size and len(data) < file_size:
+                        raise ValueError(f"Incomplete data: {len(data)}/{file_size} bytes")
                     print(f"Download completed successfully ({len(data)} bytes)!", flush=True)
                     return data
                 except Exception as http_err:
@@ -69,8 +69,11 @@ class ProcessingService:
                     pdf_bytes_io = await self.bot.download_file(file_path=file.file_path, timeout=300)
                     if pdf_bytes_io:
                         res = pdf_bytes_io.read()
+                        if file_size and len(res) < file_size:
+                            raise ValueError(f"Fallback incomplete: {len(res)}/{file_size} bytes")
                         print(f"bot.download_file fallback succeeded ({len(res)} bytes).", flush=True)
                         return res
+                    raise ValueError("bot.download_file returned None")
             except Exception as e:
                 err_type = type(e).__name__
                 err_msg = str(e) or repr(e)
@@ -81,7 +84,6 @@ class ProcessingService:
                     await asyncio.sleep(wait_time)
                 else:
                     print(f"Download failed after {retries} attempts: [{err_type}] {err_msg}", flush=True)
-        # pyrefly: ignore [bad-raise]
         raise last_exception
     async def process_pdf_from_telegram(self, file_id: str, chat_id: int, color: bool = True, template: str = "A", status_message_id: int = None) -> bool:
         status_msg_id = status_message_id
