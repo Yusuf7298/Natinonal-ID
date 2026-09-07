@@ -55,18 +55,18 @@ def format_gregorian_date_display(date_str: str, format_type: str = "YYYY/MM/DD"
 
 TEMPLATE_FIELDS = {
     # Amharic Fields
-    "name_am": {"type": "text", "coords": (242, 103), "lang": "am", "size": 19},
-    "date_of_birth_et": {"type": "text", "coords": (242, 193), "lang": "am", "size": 17},
-    "sex_am": {"type": "text", "coords": (242, 236), "lang": "am", "size": 17},
+    "name_am": {"type": "text", "coords": (242, 104), "lang": "am", "size": 18},
+    "date_of_birth_et": {"type": "text", "coords": (242, 183), "lang": "am", "size": 16},
+    "sex_am": {"type": "text", "coords": (242, 220), "lang": "am", "size": 16},
     "region_am": {"type": "text", "coords": (698, 148), "lang": "am", "size": 17},
     "zone_am": {"type": "text", "coords": (698, 190), "lang": "am", "size": 17},
     "woreda_am": {"type": "text", "coords": (698, 232), "lang": "am", "size": 17},
 
     # English / Numeric Fields
-    "name_en": {"type": "text", "coords": (242, 132), "lang": "en", "size": 19},
-    "date_of_birth_greg": {"type": "text", "coords": (242, 193), "lang": "en", "size": 17},
-    "sex_en": {"type": "text", "coords": (314, 236), "lang": "en", "size": 17},
-    "expiry_date": {"type": "text", "coords": (242, 273), "lang": "am", "size": 17},
+    "name_en": {"type": "text", "coords": (242, 126), "lang": "en", "size": 18},
+    "date_of_birth_greg": {"type": "text", "coords": (242, 183), "lang": "en", "size": 16},
+    "sex_en": {"type": "text", "coords": (314, 220), "lang": "en", "size": 16},
+    "expiry_date": {"type": "text", "coords": (242, 257), "lang": "am", "size": 16},
     "phone_number": {"type": "text", "coords": (698, 52), "lang": "en", "size": 17},
     "nationality": {"type": "text", "coords": (698, 105), "lang": "am", "size": 17},
     "region_en": {"type": "text", "coords": (698, 168), "lang": "en", "size": 17},
