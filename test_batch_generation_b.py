@@ -44,6 +44,7 @@ def test_batch_generation_b():
             font_size=20,
             boldness=0.5,
             color=False,
+            flip=False
         )
         full_id_img = Image.open(io.BytesIO(image_bytes))
         id_w, id_h = full_id_img.size

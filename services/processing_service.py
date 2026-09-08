@@ -259,7 +259,8 @@ class ProcessingService:
                             font_size=17,
                             boldness=0.5,
                             dpi=600,
-                            color=color
+                            color=color,
+                            flip=False
                         )
                 full_id_img = Image.open(io.BytesIO(image_bytes))
                 id_w, id_h = full_id_img.size

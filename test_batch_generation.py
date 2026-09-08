@@ -40,7 +40,8 @@ def test_batch_generation():
             output_dir=output_dir,
             font_amharic="./fonts/truetype/abyssinica/AbyssinicaSIL-Regular.ttf",
             font_english="./fonts/truetype/noto/NotoSans-Regular.ttf",
-            color=True
+            color=True,
+            flip=False
         )
         full_id_img = Image.open(io.BytesIO(image_bytes))
         id_w, id_h = full_id_img.size
