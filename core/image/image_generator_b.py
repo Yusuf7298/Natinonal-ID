@@ -77,7 +77,7 @@ TEMPLATE_B_FIELDS = {
     "fan_code": {"type": "text", "coords": (283, 301), "lang": "en", "size": 17},
 
     # Image fields (x1, y1, x2, y2)
-    "photo": {"type": "image", "coords": (25, 80, 230, 363)},
+    "photo": {"type": "image", "coords": (15, 60, 245, 390)},
     "qrcode": {"type": "image", "coords": (940, 25, 1265, 340)},
     "fin_code": {"type": "image", "coords": (685, 308, 915, 342)},
     "small_image": {"type": "image", "coords": (484, 260, 564, 380)},
