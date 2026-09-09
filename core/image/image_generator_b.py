@@ -142,11 +142,14 @@ def generate_final_id_image_b(
     font_size: int = 17,
     boldness: float = 0.5,
     dpi: int = 600,
-    color: bool = True
+    color: bool = True,
+    text_data: dict = None,
+    flip: bool = True,
+    **kwargs
 ) -> bytes:
     """Generate final sharp ID image using Template B."""
     # 1️⃣ Extract data and images in memory
-    text_data = extract_user_data(pdf_path)
+    text_data = text_data or extract_user_data(pdf_path)
     image_crops = crop_pdf_sections(pdf_path, output_dir, dpi=dpi)
     second_images = extract_images_from_pdf(pdf_path)
 
@@ -268,6 +271,10 @@ def generate_final_id_image_b(
 
     # 8️⃣ Resize back to original dimensions for the user
     img_final = img_large.resize((w, h), Image.Resampling.LANCZOS)
+
+    # 8.5️⃣ Flip horizontally (mirror) if requested (e.g. for PVC reverse printing)
+    if flip:
+        img_final = img_final.transpose(Image.Transpose.FLIP_LEFT_RIGHT)
 
     buffer = BytesIO()
     img_final.save(buffer, format="PNG", optimize=True, dpi=(300, 300))
