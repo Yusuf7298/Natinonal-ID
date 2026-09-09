@@ -75,7 +75,7 @@ TEMPLATE_FIELDS = {
     "fan_code": {"type": "text", "coords": (283, 301), "lang": "en", "size": 17},
 
     # Image fields
-    "photo": {"type": "image", "coords": (25, 80, 195, 355)},
+    "photo": {"type": "image", "coords": (25, 80, 230, 363)},
     "qrcode": {"type": "image", "coords": (940, 25, 1265, 340)},
     "fin_code": {"type": "image", "coords": (685, 308, 915, 342)},
     "small_image": {"type": "image", "coords": (484, 260, 564, 380)},
@@ -172,18 +172,11 @@ def generate_final_id_image(
     image_crops = crop_pdf_sections(pdf_path, output_dir, dpi=dpi)
     second_images = extract_images_from_pdf(pdf_path)
 
-    raw_photo = second_images.get("photo")
-    if raw_photo is None:
-        raw_photo = image_crops.get("photo")
-
+    raw_photo = image_crops.get("photo")
     processed_photo = None
     if raw_photo is not None:
         try:
             processed_photo = get_image_without_bg(raw_photo)
-            if processed_photo.mode == "RGBA":
-                bbox = processed_photo.getbbox()
-                if bbox:
-                    processed_photo = processed_photo.crop(bbox)
         except Exception:
             if isinstance(raw_photo, np.ndarray):
                 processed_photo = Image.fromarray(cv2.cvtColor(raw_photo, cv2.COLOR_BGR2RGB)).convert("RGBA")
@@ -281,44 +274,21 @@ def generate_final_id_image(
 
             if pil_crop is None: continue
 
-            # --- 2. RESIZE & PASTE ---
+            # --- 2. RESIZE ---
             coords = field.get("coords", ())
             if len(coords) != 4:
                 continue
             x1, y1, x2, y2 = coords
             target_w, target_h = (x2 - x1) * scale, (y2 - y1) * scale
-
-            if key == "photo":
-                # Smart crop & fit: maintain natural aspect ratio without distortion or overflowing
-                pw, ph = pil_crop.size
-                target_ar = target_w / target_h
-                current_ar = pw / ph
-                if current_ar > target_ar:
-                    crop_w = int(ph * target_ar)
-                    cx = (pw - crop_w) // 2
-                    cropped = pil_crop.crop((cx, 0, cx + crop_w, ph))
-                else:
-                    crop_h = int(pw / target_ar)
-                    cropped = pil_crop.crop((0, 0, pw, crop_h))
-
-                pil_crop = cropped.resize((target_w, target_h), Image.Resampling.LANCZOS)
-                paste_x, paste_y = x1 * scale, y1 * scale
-            elif key == "small_image":
-                pw, ph = pil_crop.size
-                ratio = min(target_w / pw, target_h / ph)
-                nw, nh = max(1, int(pw * ratio)), max(1, int(ph * ratio))
-                pil_crop = pil_crop.resize((nw, nh), Image.Resampling.LANCZOS)
-                paste_x = (x1 * scale) + (target_w - nw) // 2
-                paste_y = (y2 * scale) - nh
-            else:
-                pil_crop = pil_crop.resize((target_w, target_h), Image.Resampling.LANCZOS)
-                paste_x, paste_y = x1 * scale, y1 * scale
+            pil_crop = pil_crop.resize((target_w, target_h), Image.Resampling.LANCZOS)
 
             # --- 3. PASTE ---
             if pil_crop.mode == "RGBA":
-                img_large.paste(pil_crop, (paste_x, paste_y), pil_crop)
+                # Use alpha as mask
+                img_large.paste(pil_crop, (x1 * scale, y1 * scale), pil_crop)
             else:
-                img_large.paste(pil_crop, (paste_x, paste_y))
+                # No transparency (e.g., barcode)
+                img_large.paste(pil_crop, (x1 * scale, y1 * scale))
 
         except Exception:
             pass

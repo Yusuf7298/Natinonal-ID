@@ -25,12 +25,6 @@ async def auto_process_timeout(user_id: int, bot, dp, processor):
             await processor.process_multiple_pdfs(files, user_id, color=is_color, template=template)
         await state_context.clear()
 
-# --- HANDLERS ---
-
-# --- KEYBOARDS ---
-
-# --- KEYBOARDS ---
-
 def get_main_kb():
     kb = [
         [types.KeyboardButton(text="📄 One PDF"), types.KeyboardButton(text="📚 Multiple PDFs")]
