@@ -77,7 +77,7 @@ TEMPLATE_B_FIELDS = {
     "fan_code": {"type": "text", "coords": (283, 301), "lang": "en", "size": 17},
 
     # Image fields (x1, y1, x2, y2)
-    "photo": {"type": "image", "coords": (25, 115, 230, 390)},
+    "photo": {"type": "image", "coords": (25, 80, 195, 355)},
     "qrcode": {"type": "image", "coords": (940, 25, 1265, 340)},
     "fin_code": {"type": "image", "coords": (685, 308, 915, 342)},
     "small_image": {"type": "image", "coords": (484, 260, 564, 380)},
@@ -142,21 +142,26 @@ def generate_final_id_image_b(
     font_size: int = 17,
     boldness: float = 0.5,
     dpi: int = 600,
-    color: bool = True,
-    text_data: dict = None,
-    flip: bool = True
+    color: bool = True
 ) -> bytes:
     """Generate final sharp ID image using Template B."""
     # 1️⃣ Extract data and images in memory
-    text_data = text_data or extract_user_data(pdf_path)
+    text_data = extract_user_data(pdf_path)
     image_crops = crop_pdf_sections(pdf_path, output_dir, dpi=dpi)
     second_images = extract_images_from_pdf(pdf_path)
 
-    raw_photo = image_crops.get("photo")
+    raw_photo = second_images.get("photo")
+    if raw_photo is None:
+        raw_photo = image_crops.get("photo")
+
     processed_photo = None
     if raw_photo is not None:
         try:
             processed_photo = get_image_without_bg(raw_photo)
+            if processed_photo.mode == "RGBA":
+                bbox = processed_photo.getbbox()
+                if bbox:
+                    processed_photo = processed_photo.crop(bbox)
         except Exception:
             if isinstance(raw_photo, np.ndarray):
                 processed_photo = Image.fromarray(cv2.cvtColor(raw_photo, cv2.COLOR_BGR2RGB)).convert("RGBA")
@@ -203,86 +208,7 @@ def generate_final_id_image_b(
     text_data["expiry_date"] = f"{expiry_eth_date} | {expiry_date_greg}"
     text_data["nationality"] = "ኢትዮጵያዊ | Ethiopian"
 
-    # 5️⃣ Paste cropped images (Pasted before text so text is always rendered cleanly on top)
-    for key, field in TEMPLATE_B_FIELDS.items():
-        if field["type"] != "image" or key not in image_crops:
-            continue
-        crop_img = image_crops[key]
-        if crop_img is None:
-            continue
-
-        try:
-            pil_crop = None
-            if key == "photo" or key == "small_image":
-                pil_crop = crop_img
-            else:
-                if isinstance(crop_img, np.ndarray):
-                    if crop_img.size == 0:
-                        continue
-                    pil_crop = Image.fromarray(cv2.cvtColor(crop_img, cv2.COLOR_BGR2RGB))
-                else:
-                    pil_crop = crop_img.convert("RGBA")
-
-            if pil_crop is None:
-                continue
-
-            coords = field.get("coords", ())
-            if len(coords) != 4:
-                continue
-            x1, y1, x2, y2 = coords
-
-            if key == "photo":
-                orig_w, orig_h = pil_crop.size
-                ar = orig_w / orig_h
-                
-                # Proportional sizing: height 275 at 1x scale (fits inside white oval aura without overflowing)
-                target_h = int(275 * scale)
-                target_w = int(target_h * ar)
-                
-                # Safety limit: max width 215 at 1x scale to prevent extending into text fields or margins
-                max_w = int(215 * scale)
-                if target_w > max_w:
-                    target_w = max_w
-                    target_h = int(target_w / ar)
-                    
-                pil_crop = pil_crop.resize((target_w, target_h), Image.Resampling.LANCZOS)
-                
-                # Ground portrait cleanly at bottom edge (y2 = 390)
-                paste_y = (390 * scale) - target_h
-                # Center horizontally in the designated photo area (center x=128)
-                paste_x = int(128 * scale - target_w // 2)
-
-            elif key == "small_image":
-                orig_w, orig_h = pil_crop.size
-                ar = orig_w / orig_h
-                box_w = (x2 - x1) * scale
-                box_h = (y2 - y1) * scale
-                
-                if box_w / box_h > ar:
-                    target_h = box_h
-                    target_w = int(target_h * ar)
-                else:
-                    target_w = box_w
-                    target_h = int(target_w / ar)
-                    
-                pil_crop = pil_crop.resize((target_w, target_h), Image.Resampling.LANCZOS)
-                paste_x = (x1 * scale) + ((box_w - target_w) // 2)
-                paste_y = (y2 * scale) - target_h
-
-            else:
-                target_w, target_h = (x2 - x1) * scale, (y2 - y1) * scale
-                pil_crop = pil_crop.resize((target_w, target_h), Image.Resampling.LANCZOS)
-                paste_x, paste_y = x1 * scale, y1 * scale
-
-            if pil_crop.mode == "RGBA":
-                img_large.paste(pil_crop, (paste_x, paste_y), pil_crop)
-            else:
-                img_large.paste(pil_crop, (paste_x, paste_y))
-        except Exception:
-            pass
-
-    # 6️⃣ Draw text fields
-    draw_large = ImageDraw.Draw(img_large)
+    # 5️⃣ Draw text fields
     for key, field in TEMPLATE_B_FIELDS.items():
         if field["type"] != "text" or key not in text_data:
             continue
@@ -309,16 +235,73 @@ def generate_final_id_image_b(
 
         draw_bold_text(draw_large, (x, y), text_to_draw, font_use, boldness=boldness * scale)
 
+    # 6️⃣ Paste images
+    for key, field in TEMPLATE_B_FIELDS.items():
+        if field["type"] != "image" or key not in image_crops:
+            continue
+        crop_img = image_crops[key]
+        if crop_img is None: continue
+
+        try:
+            pil_crop = None
+            if key == "photo" or key == "small_image":
+                pil_crop = crop_img
+            else:
+                if isinstance(crop_img, np.ndarray):
+                    if crop_img.size == 0: continue
+                    pil_crop = Image.fromarray(cv2.cvtColor(crop_img, cv2.COLOR_BGR2RGB))
+                else:
+                    pil_crop = crop_img.convert("RGBA")
+
+            if pil_crop is None: continue
+
+            # --- 2. RESIZE & PASTE ---
+            coords = field.get("coords", ())
+            if len(coords) != 4:
+                continue
+            x1, y1, x2, y2 = coords
+            target_w, target_h = (x2 - x1) * scale, (y2 - y1) * scale
+
+            if key == "photo":
+                # Smart crop & fit: maintain natural aspect ratio without distortion or overflowing
+                pw, ph = pil_crop.size
+                target_ar = target_w / target_h
+                current_ar = pw / ph
+                if current_ar > target_ar:
+                    crop_w = int(ph * target_ar)
+                    cx = (pw - crop_w) // 2
+                    cropped = pil_crop.crop((cx, 0, cx + crop_w, ph))
+                else:
+                    crop_h = int(pw / target_ar)
+                    cropped = pil_crop.crop((0, 0, pw, crop_h))
+
+                pil_crop = cropped.resize((target_w, target_h), Image.Resampling.LANCZOS)
+                paste_x, paste_y = x1 * scale, y1 * scale
+            elif key == "small_image":
+                pw, ph = pil_crop.size
+                ratio = min(target_w / pw, target_h / ph)
+                nw, nh = max(1, int(pw * ratio)), max(1, int(ph * ratio))
+                pil_crop = pil_crop.resize((nw, nh), Image.Resampling.LANCZOS)
+                paste_x = (x1 * scale) + (target_w - nw) // 2
+                paste_y = (y2 * scale) - nh
+            else:
+                pil_crop = pil_crop.resize((target_w, target_h), Image.Resampling.LANCZOS)
+                paste_x, paste_y = x1 * scale, y1 * scale
+
+            # --- 3. PASTE ---
+            if pil_crop.mode == "RGBA":
+                img_large.paste(pil_crop, (paste_x, paste_y), pil_crop)
+            else:
+                img_large.paste(pil_crop, (paste_x, paste_y))
+        except Exception:
+            pass
+
     # 7️⃣ Draw vertical text
     draw_vertical_text(img_large, (7, 156), date_of_issue_greg, font_english, 14, boldness=boldness, scale=scale)
     draw_vertical_text(img_large, (7, 310), date_of_issue_eth, font_amharic, 14, boldness=boldness, scale=scale)
 
     # 8️⃣ Resize back to original dimensions for the user
     img_final = img_large.resize((w, h), Image.Resampling.LANCZOS)
-
-    # 8.5️⃣ Flip horizontally (mirror) if requested (e.g. for PVC reverse printing)
-    if flip:
-        img_final = img_final.transpose(Image.Transpose.FLIP_LEFT_RIGHT)
 
     buffer = BytesIO()
     img_final.save(buffer, format="PNG", optimize=True, dpi=(300, 300))
