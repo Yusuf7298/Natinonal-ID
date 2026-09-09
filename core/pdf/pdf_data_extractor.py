@@ -3,6 +3,12 @@ from pathlib import Path
 import pdfplumber
 import unicodedata
 from typing import Any
+import logging
+
+# Suppress noisy decompression warnings from playa/pypdf during PDF parsing
+logging.getLogger("playa").setLevel(logging.ERROR)
+logging.getLogger("pypdf").setLevel(logging.ERROR)
+logging.getLogger("pdfminer").setLevel(logging.ERROR)
 def clean_extracted_text(text: Any) -> str:
     if text is None:
         return ""
@@ -32,7 +38,7 @@ def clean_extracted_text(text: Any) -> str:
 def extract_user_data(pdf_path: str | Path, debug: bool = False) -> dict:
     pdf_path = str(pdf_path)    
     try:
-        tables = camelot.read_pdf(pdf_path, pages="all", flavor="stream", suppress_stdout=False)
+        tables = camelot.read_pdf(pdf_path, pages="all", flavor="stream", suppress_stdout=True)
         if len(tables) == 0:
             raise ValueError("No tables found in the PDF.")
         table = tables[0].df

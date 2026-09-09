@@ -75,7 +75,7 @@ TEMPLATE_FIELDS = {
     "fan_code": {"type": "text", "coords": (283, 301), "lang": "en", "size": 17},
 
     # Image fields
-    "photo": {"type": "image", "coords": (15, 60, 245, 390)},
+    "photo": {"type": "image", "coords": (25, 115, 230, 390)},
     "qrcode": {"type": "image", "coords": (940, 25, 1265, 340)},
     "fin_code": {"type": "image", "coords": (685, 308, 915, 342)},
     "small_image": {"type": "image", "coords": (484, 260, 564, 380)},
@@ -226,7 +226,95 @@ def generate_final_id_image(
     text_data["expiry_date"] = f"{expiry_eth_date} | {expiry_date_greg}"
     text_data["nationality"] = "ኢትዮጵያዊ | Ethiopian"
 
-    # 5️⃣ Draw text fields
+    # 5️⃣ Paste cropped images (Pasted before text so text is always rendered cleanly on top)
+    for key, field in TEMPLATE_FIELDS.items():
+        if field["type"] != "image" or key not in image_crops:  
+            continue
+        crop_img = image_crops[key]
+        if crop_img is None:  # Photo could be None if missing in PDF
+            continue
+            
+        try:
+            pil_crop = None
+
+            # --- 1. Use already processed photo/small_image OR process other images ---
+            if key == "photo" or key == "small_image":
+                # Already processed above!
+                pil_crop = crop_img
+            else:
+                # For other image types (QR code, etc.), just convert to PIL
+                if isinstance(crop_img, np.ndarray):
+                    if crop_img.size == 0:
+                        continue
+                    pil_crop = Image.fromarray(cv2.cvtColor(crop_img, cv2.COLOR_BGR2RGB))
+                else:
+                    pil_crop = crop_img.convert("RGBA")
+
+            if pil_crop is None:
+                continue
+
+            # --- 2. RESIZE & POSITIONING ---
+            coords = field.get("coords", ())
+            if len(coords) != 4:
+                continue
+            x1, y1, x2, y2 = coords
+
+            if key == "photo":
+                orig_w, orig_h = pil_crop.size
+                ar = orig_w / orig_h
+                
+                # Proportional sizing: height 275 at 1x scale (fits inside white oval aura without overflowing)
+                target_h = int(275 * scale)
+                target_w = int(target_h * ar)
+                
+                # Safety limit: max width 215 at 1x scale to prevent extending into text fields or margins
+                max_w = int(215 * scale)
+                if target_w > max_w:
+                    target_w = max_w
+                    target_h = int(target_w / ar)
+                    
+                pil_crop = pil_crop.resize((target_w, target_h), Image.Resampling.LANCZOS)
+                
+                # Ground portrait cleanly at bottom edge (y2 = 390)
+                paste_y = (390 * scale) - target_h
+                # Center horizontally in the designated photo area (center x=128)
+                paste_x = int(128 * scale - target_w // 2)
+
+            elif key == "small_image":
+                orig_w, orig_h = pil_crop.size
+                ar = orig_w / orig_h
+                box_w = (x2 - x1) * scale
+                box_h = (y2 - y1) * scale
+                
+                if box_w / box_h > ar:
+                    target_h = box_h
+                    target_w = int(target_h * ar)
+                else:
+                    target_w = box_w
+                    target_h = int(target_w / ar)
+                    
+                pil_crop = pil_crop.resize((target_w, target_h), Image.Resampling.LANCZOS)
+                paste_x = (x1 * scale) + ((box_w - target_w) // 2)
+                paste_y = (y2 * scale) - target_h
+
+            else:
+                target_w, target_h = (x2 - x1) * scale, (y2 - y1) * scale
+                pil_crop = pil_crop.resize((target_w, target_h), Image.Resampling.LANCZOS)
+                paste_x, paste_y = x1 * scale, y1 * scale
+
+            # --- 3. PASTE ---
+            if pil_crop.mode == "RGBA":
+                # Use alpha as mask
+                img_large.paste(pil_crop, (paste_x, paste_y), pil_crop)
+            else:
+                # No transparency (e.g., barcode)
+                img_large.paste(pil_crop, (paste_x, paste_y))
+
+        except Exception:
+            pass
+
+    # 6️⃣ Draw text fields
+    draw_large = ImageDraw.Draw(img_large)
     for key, field in TEMPLATE_FIELDS.items():
         if field["type"] != "text" or key not in text_data:
             continue
@@ -252,50 +340,6 @@ def generate_final_id_image(
             font_use = font_en_large
 
         draw_bold_text(draw_large, (x, y), text_to_draw, font_use, boldness=boldness * scale)
-
-    # 6️⃣ Paste cropped images
-    for key, field in TEMPLATE_FIELDS.items():
-        if field["type"] != "image" or key not in image_crops:  
-            continue
-        crop_img = image_crops[key]
-        if crop_img is None: # Photo could be None if missing in PDF
-            continue
-            
-        try:
-            pil_crop = None
-
-            # --- 1. Use already processed photo/small_image OR process other images ---
-            if key == "photo" or key == "small_image":
-                # Already processed above!
-                pil_crop = crop_img
-            else:
-                # For other image types (QR code, etc.), just convert to PIL
-                if isinstance(crop_img, np.ndarray):
-                    if crop_img.size == 0: continue
-                    pil_crop = Image.fromarray(cv2.cvtColor(crop_img, cv2.COLOR_BGR2RGB))
-                else:
-                    pil_crop = crop_img.convert("RGBA")
-
-            if pil_crop is None: continue
-
-            # --- 2. RESIZE ---
-            coords = field.get("coords", ())
-            if len(coords) != 4:
-                continue
-            x1, y1, x2, y2 = coords
-            target_w, target_h = (x2 - x1) * scale, (y2 - y1) * scale
-            pil_crop = pil_crop.resize((target_w, target_h), Image.Resampling.LANCZOS)
-
-            # --- 3. PASTE ---
-            if pil_crop.mode == "RGBA":
-                # Use alpha as mask
-                img_large.paste(pil_crop, (x1 * scale, y1 * scale), pil_crop)
-            else:
-                # No transparency (e.g., barcode)
-                img_large.paste(pil_crop, (x1 * scale, y1 * scale))
-
-        except Exception:
-            pass
 
     # 7️⃣ Draw vertical date text (both)
     draw_vertical_text(img_large, (7, 156), date_of_issue_greg, font_english, 14, boldness=boldness, scale=scale)
