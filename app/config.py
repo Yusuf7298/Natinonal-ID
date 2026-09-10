@@ -7,7 +7,7 @@ class Settings(BaseSettings):
     API_BASE_URL: str = "https://api.telegram.org"
     BOT_NAME: str = "National ID converter"
     AUTHORIZED_USER_IDS: str = ""
-    REQUIRED_GROUP_ID: int = 0 
+    REQUIRED_GROUP_ID: int | str = 0
     REQUIRED_CHANNELS: str = ""
     CHANNEL_INVITE_LINKS: str = ""
     TELEGRAM_WEBHOOK_SECRET: str = ""
@@ -35,17 +35,24 @@ class Settings(BaseSettings):
     def required_channels_list(self) -> list[int | str]:
         """Returns list of channel/group IDs (int) or usernames (str) from REQUIRED_CHANNELS and REQUIRED_GROUP_ID."""
         channels: list[int | str] = []
+        raw_sources = []
         if self.REQUIRED_CHANNELS:
-            for ch in self.REQUIRED_CHANNELS.split(","):
+            raw_sources.append(str(self.REQUIRED_CHANNELS))
+        if self.REQUIRED_GROUP_ID:
+            raw_sources.append(str(self.REQUIRED_GROUP_ID))
+
+        for source in raw_sources:
+            for ch in source.split(","):
                 ch = ch.strip()
-                if not ch:
+                if not ch or ch == "0":
                     continue
                 try:
-                    channels.append(int(ch))
+                    val = int(ch)
+                    if val != 0 and val not in channels:
+                        channels.append(val)
                 except ValueError:
-                    channels.append(ch)
-        if self.REQUIRED_GROUP_ID and self.REQUIRED_GROUP_ID not in channels:
-            channels.append(self.REQUIRED_GROUP_ID)
+                    if ch not in channels:
+                        channels.append(ch)
         return channels
 
     @property
