@@ -46,13 +46,14 @@ async def get_channel_info(bot, channel: Union[int, str]) -> Tuple[str, str]:
     _channel_info_cache[key] = {"title": title, "invite_link": invite_link}
     return title, invite_link
 
-async def check_user_membership(bot, user_id: int) -> Tuple[bool, List[Tuple[Union[int, str], str, str]], List[str]]:
+async def check_user_membership(bot, user_id: int) -> Tuple[bool, List[Tuple[Union[int, str], str, str]], List[Tuple[Union[int, str], str, str]], List[str]]:
     """
     Checks membership across all configured channels/groups in settings.required_channels_list.
     Returns:
-        (all_joined, unjoined_channels, errors)
-        where unjoined_channels is list of (channel, title, invite_link)
+        (is_authorized, unjoined_channels, joined_channels, errors)
+    User is authorized if they belong to AT LEAST ONE channel.
     """
+    joined = []
     unjoined = []
     errors = []
 
@@ -63,7 +64,10 @@ async def check_user_membership(bot, user_id: int) -> Tuple[bool, List[Tuple[Uni
                 user_id=user_id
             )
             # Allowed statuses: owner, creator, administrator, member, restricted (still in group)
-            if member.status not in ["owner", "creator", "administrator", "member", "restricted"]:
+            if member.status in ["owner", "creator", "administrator", "member", "restricted"]:
+                title, link = await get_channel_info(bot, channel)
+                joined.append((channel, title, link))
+            else:
                 title, link = await get_channel_info(bot, channel)
                 unjoined.append((channel, title, link))
         except Exception as e:
@@ -73,13 +77,14 @@ async def check_user_membership(bot, user_id: int) -> Tuple[bool, List[Tuple[Uni
             title, link = await get_channel_info(bot, channel)
             unjoined.append((channel, title, link))
 
-    all_joined = (len(unjoined) == 0 and len(errors) == 0)
-    return all_joined, unjoined, errors
+    # User is authorized if they joined AT LEAST ONE channel
+    is_authorized = len(joined) > 0
+    return is_authorized, unjoined, joined, errors
 
-def build_membership_keyboard(unjoined_channels: List[Tuple[Union[int, str], str, str]]) -> types.InlineKeyboardMarkup:
-    """Builds inline keyboard with join buttons for unjoined channels and a verify button."""
+def build_membership_keyboard(channels: List[Tuple[Union[int, str], str, str]]) -> types.InlineKeyboardMarkup:
+    """Builds inline keyboard with join buttons for channels and a verify button."""
     rows = []
-    for idx, (channel, title, link) in enumerate(unjoined_channels, start=1):
+    for idx, (channel, title, link) in enumerate(channels, start=1):
         btn_text = f"📢 Join {title}"
         if link:
             rows.append([types.InlineKeyboardButton(text=btn_text, url=link)])
@@ -121,8 +126,8 @@ class MembershipMiddleware(BaseMiddleware):
 
         # 4. Handle "Verify Membership" callback click
         if event.callback_query and event.callback_query.data == "check_membership":
-            all_joined, unjoined, errors = await check_user_membership(event.bot, user.id)
-            if all_joined:
+            is_authorized, unjoined, joined, errors = await check_user_membership(event.bot, user.id)
+            if is_authorized:
                 await event.callback_query.answer("✅ Membership verified! Thank you.", show_alert=False)
                 try:
                     await event.callback_query.message.delete()
@@ -140,9 +145,8 @@ class MembershipMiddleware(BaseMiddleware):
                 )
                 return  # Successfully handled verification
 
-            # Still missing some channels
-            await event.callback_query.answer("⚠️ You haven't joined all required channels yet. Please join all of them and try again.", show_alert=True)
-            # Refresh keyboard with latest unjoined channels
+            # Not joined any channel yet
+            await event.callback_query.answer("⚠️ Please join at least one of the channels below and try again.", show_alert=True)
             kb = build_membership_keyboard(unjoined)
             try:
                 await event.callback_query.message.edit_reply_markup(reply_markup=kb)
@@ -151,17 +155,17 @@ class MembershipMiddleware(BaseMiddleware):
             return  # Block further execution
 
         # 5. General check for all other updates (messages or other callbacks)
-        all_joined, unjoined, errors = await check_user_membership(event.bot, user.id)
-        if all_joined:
+        is_authorized, unjoined, joined, errors = await check_user_membership(event.bot, user.id)
+        if is_authorized:
             return await handler(event, data)
 
-        # Access Denied: User has not joined all channels
-        print(f"DEBUG: Access DENIED for user {user.id}. Missing {len(unjoined)} channels.")
+        # Access Denied: User has not joined at least one channel
+        print(f"DEBUG: Access DENIED for user {user.id}. User is not in any of the {len(required_channels)} channels.")
         
         restriction_msg = (
             "⚠️ **Channel Membership Required**\n\n"
-            "To use this bot, you must be a member of all our official Telegram channels.\n\n"
-            "Please click the buttons below to join, then click **'🔄 Verify Membership'** to start:"
+            "To use this bot, please join at least one of our official Telegram channels below:\n\n"
+            "After joining, click **'🔄 Verify Membership'** to start!"
         )
         
         kb = build_membership_keyboard(unjoined)
@@ -182,7 +186,7 @@ class MembershipMiddleware(BaseMiddleware):
             except Exception:
                 await event.message.answer(restriction_msg.replace("**", ""), reply_markup=kb)
         elif event.callback_query:
-            await event.callback_query.answer("⚠️ Please join all required channels first.", show_alert=True)
+            await event.callback_query.answer("⚠️ Please join at least one of the channels first.", show_alert=True)
             try:
                 await event.callback_query.message.answer(restriction_msg, reply_markup=kb, parse_mode="Markdown")
             except Exception:
