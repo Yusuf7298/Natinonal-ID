@@ -38,9 +38,9 @@ def test_generation_b():
         img = Image.open(BytesIO(image_bytes))
         width, height = img.size
         print(f"Generated Template Black Cur image size: {width}x{height}")
-        target_w, target_h = 1280, 390
+        target_w, target_h = 1024, 309
         if width == target_w and height == target_h:
-            print(f"[OK] SUCCESS: Dimensions match Template Black Cur target ({target_w}x{target_h})")
+            print(f"[OK] SUCCESS: Dimensions match Template B target ({target_w}x{target_h})")
             save_path = "storage/test_result_template_b.png"
             img.save(save_path)
             print(f"Saved for verification to: {os.path.abspath(save_path)}")

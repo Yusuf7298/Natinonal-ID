@@ -35,9 +35,9 @@ def test_generation():
         img = Image.open(BytesIO(image_bytes))
         width, height = img.size
         print(f"Generated image size: {width}x{height}")
-        target_w, target_h = 1280, 390
+        target_w, target_h = 1024, 309
         if width == target_w and height == target_h:
-            print(f"[OK] SUCCESS: Dimensions match White Template Cur target ({target_w}x{target_h})")
+            print(f"[OK] SUCCESS: Dimensions match ID target ({target_w}x{target_h})")
             save_path = "storage/test_result_high_res.png"
             img.save(save_path)
             print(f"Saved for verification to: {save_path}")

@@ -145,6 +145,7 @@ def generate_final_id_image_b(
     color: bool = True,
     text_data: dict = None,
     flip: bool = True,
+    target_size: tuple = (1024, 309),
     **kwargs
 ) -> bytes:
     """Generate final sharp ID image using Template B."""
@@ -269,8 +270,9 @@ def generate_final_id_image_b(
     draw_vertical_text(img_large, (7, 156), date_of_issue_greg, font_english, 14, boldness=boldness, scale=scale)
     draw_vertical_text(img_large, (7, 310), date_of_issue_eth, font_amharic, 14, boldness=boldness, scale=scale)
 
-    # 8️⃣ Resize back to original dimensions for the user
-    img_final = img_large.resize((w, h), Image.Resampling.LANCZOS)
+    # 8️⃣ Resize back to target dimensions for the user (default 1024 x 309)
+    out_w, out_h = target_size if target_size else (1024, 309)
+    img_final = img_large.resize((out_w, out_h), Image.Resampling.LANCZOS)
 
     # 8.5️⃣ Flip horizontally (mirror) if requested (e.g. for PVC reverse printing)
     if flip:
