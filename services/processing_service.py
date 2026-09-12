@@ -208,11 +208,11 @@ class ProcessingService:
         else:
             msg = await self.bot.send_message(chat_id=chat_id, text=f"🚀 Starting batch processing of {len(file_ids)} PDFs...")
             status_msg_id = msg.message_id
-        A4_WIDTH = 905
-        A4_HEIGHT = 1280
-        ID_TARGET_W = 388
-        ID_TARGET_H = 244
-        GAP = 28
+        A4_WIDTH = 2480
+        A4_HEIGHT = 3508
+        ID_TARGET_W = 1011
+        ID_TARGET_H = 638
+        GAP = 50
         TARGET_HEIGHT = ID_TARGET_H
         TARGET_ROW_WIDTH = (ID_TARGET_W * 2) + GAP
         all_rows_processed = []
@@ -289,7 +289,7 @@ class ProcessingService:
                 end_idx = min(start_idx + 5, len(file_ids))
                 current_batch_size = end_idx - start_idx
                 a4_canvas = Image.new('RGB', (A4_WIDTH, A4_HEIGHT), (255, 255, 255))
-                v_gap = 10
+                v_gap = 20
                 total_block_h = (current_batch_size * TARGET_HEIGHT) + ((current_batch_size - 1) * v_gap if current_batch_size > 1 else 0)
                 start_y = (A4_HEIGHT - total_block_h) // 2
                 x_pos = (A4_WIDTH - TARGET_ROW_WIDTH) // 2
@@ -298,7 +298,7 @@ class ProcessingService:
                     a4_canvas.paste(all_rows_processed[start_idx + j], (x_pos, y_pos))
                 a4_canvas = a4_canvas.transpose(Image.FLIP_LEFT_RIGHT)
                 out_io = io.BytesIO()
-                a4_canvas.save(out_io, format='PNG')
+                a4_canvas.save(out_io, format='PNG', dpi=(300, 300))
                 out_bytes = out_io.getvalue()
                 doc_sent = False
                 for send_attempt in range(1, 4):

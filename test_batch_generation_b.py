@@ -2,6 +2,9 @@ import os
 import sys
 import io
 import math
+import sys
+if hasattr(sys.stdout, "reconfigure"):
+    sys.stdout.reconfigure(encoding="utf-8")
 from pathlib import Path
 from PIL import Image, ImageChops, ImageOps
 from io import BytesIO
@@ -27,11 +30,8 @@ def test_batch_generation_b():
         print("❌ No sample PDF found to test with.")
         return
     print(f"📂 Using sample PDF: {sample_pdf}")
-    A4_WIDTH = 905
-    A4_HEIGHT = 1280
-    TARGET_HEIGHT = 244
-    TARGET_ROW_WIDTH = 806
-    gap = 30
+    A4_WIDTH = 2480
+    A4_HEIGHT = 3508
     output_dir = Path("storage/temp/batch_test_b")
     output_dir.mkdir(parents=True, exist_ok=True)
     try:
@@ -57,9 +57,9 @@ def test_batch_generation_b():
             bbox = inv.point(lambda p: p > threshold and 255).getbbox()
             if not bbox: return im
             return im.crop(bbox)
-        ID_TARGET_W = 388
-        ID_TARGET_H = 244
-        GAP = 28
+        ID_TARGET_W = 1011
+        ID_TARGET_H = 638
+        GAP = 50
         TARGET_ROW_WIDTH = (ID_TARGET_W * 2) + GAP
         TARGET_HEIGHT = ID_TARGET_H
         front = trim_all(front_raw).resize((ID_TARGET_W, ID_TARGET_H), Image.Resampling.LANCZOS)
@@ -69,7 +69,7 @@ def test_batch_generation_b():
         new_row.paste(back, (ID_TARGET_W + GAP, 0))
         num_ids = 5
         a4_canvas = Image.new('RGB', (A4_WIDTH, A4_HEIGHT), (255, 255, 255))
-        v_gap = 10
+        v_gap = 20
         total_block_h = (num_ids * TARGET_HEIGHT) + ((num_ids - 1) * v_gap)
         start_y = (A4_HEIGHT - total_block_h) // 2
         x_pos = (A4_WIDTH - TARGET_ROW_WIDTH) // 2
@@ -79,7 +79,7 @@ def test_batch_generation_b():
             a4_canvas.paste(new_row, (x_pos, y_pos))
         a4_canvas = a4_canvas.transpose(Image.FLIP_LEFT_RIGHT)
         save_path = "storage/batch_test_result_B_A4.png"
-        a4_canvas.save(save_path)
+        a4_canvas.save(save_path, dpi=(300, 300))
         print(f"✅ SUCCESS: Saved Template B A4 test result to: {os.path.abspath(save_path)}")
     except Exception as e:
         print(f"❌ Error: {e}")
