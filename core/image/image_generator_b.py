@@ -20,6 +20,22 @@ _local_en = LOCAL_FONTS_DIR / "noto" / "NotoSans-Regular.ttf"
 
 FONT_AMHARIC_DEFAULT = str(_local_am) if _local_am.exists() else "/usr/share/fonts/truetype/sil-abyssinica/AbyssinicaSIL-Regular.ttf"
 FONT_ENGLISH_DEFAULT = str(_local_en) if _local_en.exists() else "/usr/share/fonts/truetype/noto/NotoSans-Regular.ttf"
+
+_local_am_bold = LOCAL_FONTS_DIR / "noto" / "NotoSansEthiopic-Bold.ttf"
+_local_en_bold = LOCAL_FONTS_DIR / "noto" / "NotoSans-Bold.ttf"
+FONT_AMHARIC_BOLD = str(_local_am_bold) if _local_am_bold.exists() else FONT_AMHARIC_DEFAULT
+FONT_ENGLISH_BOLD = str(_local_en_bold) if _local_en_bold.exists() else FONT_ENGLISH_DEFAULT
+
+LABEL_FIELDS_B = [
+    ("ሙሉ ስም", "Full Name", (242, 85)),
+    ("የትውልድ ቀን", "Date of Birth", (242, 169)),
+    ("ፆታ", "Sex", (242, 212)),
+    ("የማብቂያ ቀን", "Date of Expiry", (242, 252)),
+    ("ስልክ ቁጥር", "Phone Number", (698, 33)),
+    ("ዜግነት", "Nationality", (698, 83)),
+    ("አድራሻ", "Address", (698, 126)),
+]
+
 TEMPLATES_DIR = BASE_DIR / "data" / "templates"
 _tb_clean = TEMPLATES_DIR / "template_b.png"
 TEMPLATE_B_PATH = _tb_clean if _tb_clean.exists() else (TEMPLATES_DIR / "template_black_cur.png")
@@ -231,6 +247,36 @@ def generate_final_id_image_b(
             font_use = font_en_large
 
         draw_bold_text(draw_large, (x, y), text_to_draw, font_use, boldness=boldness * scale)
+ 
+    # 5.5️⃣ Draw sharp bold labels (Bilingual Amharic + English)
+    try:
+        font_lbl_am = ImageFont.truetype(FONT_AMHARIC_BOLD, int(11.5 * scale))
+        font_lbl_en = ImageFont.truetype(FONT_ENGLISH_BOLD, int(11.5 * scale))
+    except Exception:
+        font_lbl_am = font_am_large
+        font_lbl_en = font_en_large
+
+    label_color = (175, 15, 15) if color else (40, 40, 40)
+
+    for am_txt, en_txt, pos in LABEL_FIELDS_B:
+        lx, ly = pos[0] * scale, pos[1] * scale
+        draw_bold_text(draw_large, (lx, ly), am_txt, font_lbl_am, fill=label_color, boldness=0.4 * scale)
+        am_w = draw_large.textlength(am_txt, font=font_lbl_am)
+        sep_en = " | " + en_txt
+        draw_bold_text(draw_large, (lx + am_w, ly), sep_en, font_lbl_en, fill=label_color, boldness=0.4 * scale)
+
+    try:
+        font_sub_am = ImageFont.truetype(FONT_AMHARIC_BOLD, int(8 * scale))
+        font_sub_en = ImageFont.truetype(FONT_ENGLISH_BOLD, int(8 * scale))
+    except Exception:
+        font_sub_am = font_am_large
+        font_sub_en = font_en_large
+
+    sub_color = (185, 40, 40) if color else (60, 60, 60)
+    sub_x, sub_y = 698 * scale, 97 * scale
+    draw_bold_text(draw_large, (sub_x, sub_y), "በተገለጸው መሰረት", font_sub_am, fill=sub_color, boldness=0.2 * scale)
+    sub_am_w = draw_large.textlength("በተገለጸው መሰረት", font=font_sub_am)
+    draw_bold_text(draw_large, (sub_x + sub_am_w, sub_y), " | Self Declared", font_sub_en, fill=sub_color, boldness=0.2 * scale)
 
     # 6️⃣ Paste images
     for key, field in TEMPLATE_B_FIELDS.items():

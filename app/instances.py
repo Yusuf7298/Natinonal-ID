@@ -37,13 +37,19 @@ class RetryRequestMiddleware(BaseRequestMiddleware):
                 print(f"Network Error: ({type(e).__name__}: {e}) on {method.__api_method__}. Retrying attempt {attempt + 1}/{self.max_retries} in {delay:.1f}s...", flush=True)
                 await asyncio.sleep(delay)
                 delay *= self.backoff_factor
+import os
+import socket
+
 class RobustAiohttpSession(AiohttpSession):
     def __init__(self, *args: Any, keepalive_timeout: float = 30.0, **kwargs: Any):
         super().__init__(*args, **kwargs)
+        self._connector_init["family"] = socket.AF_INET
         self._connector_init["keepalive_timeout"] = keepalive_timeout
         self._connector_init["enable_cleanup_closed"] = True
-session = RobustAiohttpSession(timeout=1200.0)
-session.middleware.register(RetryRequestMiddleware(max_retries=3, initial_delay=1.5))
+
+proxy_url = os.getenv("HTTPS_PROXY") or os.getenv("HTTP_PROXY") or os.getenv("ALL_PROXY") or None
+session = RobustAiohttpSession(timeout=1200.0, proxy=proxy_url) if proxy_url else RobustAiohttpSession(timeout=1200.0)
+session.middleware.register(RetryRequestMiddleware(max_retries=5, initial_delay=2.0))
 bot = Bot(token=settings.TELEGRAM_TOKEN, session=session)
 dp = Dispatcher(storage=MemoryStorage())
 scheduler = AsyncIOScheduler()
