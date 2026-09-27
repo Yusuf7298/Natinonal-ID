@@ -212,14 +212,14 @@ def generate_final_id_image_b(
     e_year, e_month, e_day = gregorian_to_ethiopian(today.year, today.month, today.day)
     mon_abbr = MONTH_NAMES[today.month - 1]
 
-    date_of_issue_greg = f"- {today.day:02d}/{mon_abbr}/{today.year}"
-    date_of_issue_eth = f"- {e_day:02d}/{e_month:02d}/{e_year:04d}"
+    date_of_issue_greg = f"{today.day:02d}/{mon_abbr}/{today.year:04d}"
+    date_of_issue_eth = f"{e_day:02d}/{e_month:02d}/{e_year:04d}"
     
     expiry_eth_date = f"{e_day:02d}/{e_month:02d}/{e_year + 8:04d}"
     expiry_date_greg = f"{today.year + 8:04d}/{mon_abbr}/{today.day:02d}"
     
     text_data["expiry_date"] = f"{expiry_eth_date} | {expiry_date_greg}"
-    text_data["nationality"] = "ኢትዮጵያዊ | Ethiopian"
+    text_data["nationality"] = "ኢትዮጵያ | Ethiopia"
 
     # 5️⃣ Draw text fields
     for key, field in TEMPLATE_B_FIELDS.items():
@@ -273,9 +273,9 @@ def generate_final_id_image_b(
 
     sub_color = (98, 112, 88) if color else (60, 60, 60)
     sub_x, sub_y = 698 * scale, 97 * scale
-    draw_bold_text(draw_large, (sub_x, sub_y), "በተገለጸው መሰረት", font_sub_am, fill=sub_color, boldness=0.2 * scale)
-    sub_am_w = draw_large.textlength("በተገለጸው መሰረት", font=font_sub_am)
-    draw_bold_text(draw_large, (sub_x + sub_am_w, sub_y), " | Self Declared", font_sub_en, fill=sub_color, boldness=0.2 * scale)
+    draw_bold_text(draw_large, (sub_x, sub_y), "(በተገለጸው መሰረት", font_sub_am, fill=sub_color, boldness=0.2 * scale)
+    sub_am_w = draw_large.textlength("(በተገለጸው መሰረት", font=font_sub_am)
+    draw_bold_text(draw_large, (sub_x + sub_am_w, sub_y), " | Self Declared)", font_sub_en, fill=sub_color, boldness=0.2 * scale)
 
     # 6️⃣ Paste images
     for key, field in TEMPLATE_B_FIELDS.items():
