@@ -27,13 +27,13 @@ FONT_AMHARIC_BOLD = str(_local_am_bold) if _local_am_bold.exists() else FONT_AMH
 FONT_ENGLISH_BOLD = str(_local_en_bold) if _local_en_bold.exists() else FONT_ENGLISH_DEFAULT
 
 LABEL_FIELDS_B = [
-    ("ሙሉ ስም", "Full Name", (242, 85)),
-    ("የትውልድ ቀን", "Date of Birth", (242, 169)),
-    ("ፆታ", "Sex", (242, 212)),
-    ("የማብቂያ ቀን", "Date of Expiry", (242, 252)),
-    ("ስልክ ቁጥር", "Phone Number", (698, 33)),
-    ("ዜግነት", "Nationality", (698, 83)),
-    ("አድራሻ", "Address", (698, 126)),
+    ("ሙሉ ስም", "Full Name", (242, 85), (115, 110, 72)),
+    ("የትውልድ ቀን", "Date of Birth", (242, 169), (112, 105, 68)),
+    ("ፆታ", "Sex", (242, 212), (75, 85, 65)),
+    ("የማብቂያ ቀን", "Date of Expiry", (242, 252), (68, 76, 58)),
+    ("ስልክ ቁጥር", "Phone Number", (698, 33), (92, 105, 80)),
+    ("ዜግነት", "Nationality", (698, 83), (78, 90, 68)),
+    ("አድራሻ", "Address", (698, 126), (50, 68, 52)),
 ]
 
 TEMPLATES_DIR = BASE_DIR / "data" / "templates"
@@ -256,14 +256,13 @@ def generate_final_id_image_b(
         font_lbl_am = font_am_large
         font_lbl_en = font_en_large
 
-    label_color = (175, 15, 15) if color else (40, 40, 40)
-
-    for am_txt, en_txt, pos in LABEL_FIELDS_B:
+    for am_txt, en_txt, pos, clr in LABEL_FIELDS_B:
         lx, ly = pos[0] * scale, pos[1] * scale
-        draw_bold_text(draw_large, (lx, ly), am_txt, font_lbl_am, fill=label_color, boldness=0.4 * scale)
+        fill_c = clr if color else (40, 40, 40)
+        draw_bold_text(draw_large, (lx, ly), am_txt, font_lbl_am, fill=fill_c, boldness=0.4 * scale)
         am_w = draw_large.textlength(am_txt, font=font_lbl_am)
         sep_en = " | " + en_txt
-        draw_bold_text(draw_large, (lx + am_w, ly), sep_en, font_lbl_en, fill=label_color, boldness=0.4 * scale)
+        draw_bold_text(draw_large, (lx + am_w, ly), sep_en, font_lbl_en, fill=fill_c, boldness=0.4 * scale)
 
     try:
         font_sub_am = ImageFont.truetype(FONT_AMHARIC_BOLD, int(8 * scale))
@@ -272,7 +271,7 @@ def generate_final_id_image_b(
         font_sub_am = font_am_large
         font_sub_en = font_en_large
 
-    sub_color = (185, 40, 40) if color else (60, 60, 60)
+    sub_color = (98, 112, 88) if color else (60, 60, 60)
     sub_x, sub_y = 698 * scale, 97 * scale
     draw_bold_text(draw_large, (sub_x, sub_y), "በተገለጸው መሰረት", font_sub_am, fill=sub_color, boldness=0.2 * scale)
     sub_am_w = draw_large.textlength("በተገለጸው መሰረት", font=font_sub_am)
