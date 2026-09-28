@@ -35,7 +35,6 @@ LABEL_FIELDS_B = [
     ("ዜግነት", "Nationality", (698, 83), (78, 90, 68)),
     ("አድራሻ", "Address", (698, 126), (50, 68, 52)),
 ]
-
 TEMPLATES_DIR = BASE_DIR / "data" / "templates"
 _tb_clean = TEMPLATES_DIR / "template_b.png"
 TEMPLATE_B_PATH = _tb_clean if _tb_clean.exists() else (TEMPLATES_DIR / "template_black_cur.png")
@@ -247,11 +246,11 @@ def generate_final_id_image_b(
             font_use = font_en_large
 
         draw_bold_text(draw_large, (x, y), text_to_draw, font_use, boldness=boldness * scale)
- 
+
     # 5.5️⃣ Draw sharp bold labels (Bilingual Amharic + English)
     try:
-        font_lbl_am = ImageFont.truetype(FONT_AMHARIC_BOLD, int(11.5 * scale))
-        font_lbl_en = ImageFont.truetype(FONT_ENGLISH_BOLD, int(11.5 * scale))
+        font_lbl_am = ImageFont.truetype(FONT_AMHARIC_BOLD, int(12 * scale))
+        font_lbl_en = ImageFont.truetype(FONT_ENGLISH_BOLD, int(12 * scale))
     except Exception:
         font_lbl_am = font_am_large
         font_lbl_en = font_en_large
@@ -259,23 +258,23 @@ def generate_final_id_image_b(
     for am_txt, en_txt, pos, clr in LABEL_FIELDS_B:
         lx, ly = pos[0] * scale, pos[1] * scale
         fill_c = clr if color else (40, 40, 40)
-        draw_bold_text(draw_large, (lx, ly), am_txt, font_lbl_am, fill=fill_c, boldness=0.4 * scale)
+        draw_bold_text(draw_large, (lx, ly), am_txt, font_lbl_am, fill=fill_c, boldness=0.5 * scale)
         am_w = draw_large.textlength(am_txt, font=font_lbl_am)
         sep_en = " | " + en_txt
-        draw_bold_text(draw_large, (lx + am_w, ly), sep_en, font_lbl_en, fill=fill_c, boldness=0.4 * scale)
+        draw_bold_text(draw_large, (lx + am_w, ly), sep_en, font_lbl_en, fill=fill_c, boldness=0.5 * scale)
 
     try:
-        font_sub_am = ImageFont.truetype(FONT_AMHARIC_BOLD, int(8 * scale))
-        font_sub_en = ImageFont.truetype(FONT_ENGLISH_BOLD, int(8 * scale))
+        font_sub_am = ImageFont.truetype(FONT_AMHARIC_BOLD, int(8.5 * scale))
+        font_sub_en = ImageFont.truetype(FONT_ENGLISH_BOLD, int(8.5 * scale))
     except Exception:
         font_sub_am = font_am_large
         font_sub_en = font_en_large
 
     sub_color = (98, 112, 88) if color else (60, 60, 60)
     sub_x, sub_y = 698 * scale, 97 * scale
-    draw_bold_text(draw_large, (sub_x, sub_y), "(በተገለጸው መሰረት", font_sub_am, fill=sub_color, boldness=0.2 * scale)
+    draw_bold_text(draw_large, (sub_x, sub_y), "(በተገለጸው መሰረት", font_sub_am, fill=sub_color, boldness=0.3 * scale)
     sub_am_w = draw_large.textlength("(በተገለጸው መሰረት", font=font_sub_am)
-    draw_bold_text(draw_large, (sub_x + sub_am_w, sub_y), " | Self Declared)", font_sub_en, fill=sub_color, boldness=0.2 * scale)
+    draw_bold_text(draw_large, (sub_x + sub_am_w, sub_y), " | Self Declared)", font_sub_en, fill=sub_color, boldness=0.3 * scale)
 
     # 6️⃣ Paste images
     for key, field in TEMPLATE_B_FIELDS.items():
