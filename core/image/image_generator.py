@@ -31,8 +31,8 @@ LABEL_FIELDS = [
     ("የትውልድ ቀን", "Date of Birth", (242, 164), (112, 105, 68)),
     ("ፆታ", "Sex", (242, 203), (75, 85, 65)),
     ("የማብቂያ ቀን", "Date of Expiry", (242, 238), (68, 76, 58)),
-    ("ስልክ ቁጥር", "Phone Number", (698, 33), (92, 105, 80)),
-    ("ዜግነት", "Nationality", (698, 83), (78, 90, 68)),
+    ("ስልክ ቁጥር", "Phone Number", (698, 28), (92, 105, 80)),
+    ("ዜግነት", "Nationality", (698, 73), (78, 90, 68)),
     ("አድራሻ", "Address", (698, 126), (50, 68, 52)),
 ]
 
@@ -82,8 +82,8 @@ TEMPLATE_FIELDS = {
     "date_of_birth_greg": {"type": "text", "coords": (242, 183), "lang": "en", "size": 16},
     "sex_en": {"type": "text", "coords": (314, 220), "lang": "en", "size": 16},
     "expiry_date": {"type": "text", "coords": (242, 257), "lang": "am", "size": 16},
-    "phone_number": {"type": "text", "coords": (698, 52), "lang": "en", "size": 17},
-    "nationality": {"type": "text", "coords": (698, 105), "lang": "am", "size": 17},
+    "phone_number": {"type": "text", "coords": (698, 48), "lang": "en", "size": 17},
+    "nationality": {"type": "text", "coords": (698, 103), "lang": "am", "size": 17},
     "region_en": {"type": "text", "coords": (698, 168), "lang": "en", "size": 17},
     "zone_en": {"type": "text", "coords": (698, 210), "lang": "en", "size": 17},
     "woreda_en": {"type": "text", "coords": (698, 252), "lang": "en", "size": 17},
@@ -288,14 +288,14 @@ def generate_final_id_image(
         draw_bold_text(draw_large, (lx + am_w, ly), sep_en, font_lbl_en, fill=fill_c, boldness=0.5 * scale)
 
     try:
-        font_sub_am = ImageFont.truetype(FONT_AMHARIC_BOLD, int(8.5 * scale))
-        font_sub_en = ImageFont.truetype(FONT_ENGLISH_BOLD, int(8.5 * scale))
+        font_sub_am = ImageFont.truetype(FONT_AMHARIC_BOLD, int(8 * scale))
+        font_sub_en = ImageFont.truetype(FONT_ENGLISH_BOLD, int(8 * scale))
     except Exception:
         font_sub_am = font_am_large
         font_sub_en = font_en_large
 
     sub_color = (98, 112, 88) if color else (60, 60, 60)
-    sub_x, sub_y = 698 * scale, 97 * scale
+    sub_x, sub_y = 698 * scale, 87 * scale
     draw_bold_text(draw_large, (sub_x, sub_y), "(በተገለጸው መሰረት", font_sub_am, fill=sub_color, boldness=0.3 * scale)
     sub_am_w = draw_large.textlength("(በተገለጸው መሰረት", font=font_sub_am)
     draw_bold_text(draw_large, (sub_x + sub_am_w, sub_y), " | Self Declared)", font_sub_en, fill=sub_color, boldness=0.3 * scale)
