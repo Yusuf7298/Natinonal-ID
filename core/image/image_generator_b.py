@@ -30,8 +30,8 @@ LABEL_FIELDS_B = [
     ("ሙሉ ስም", "Full Name", (242, 85), (115, 110, 72)),
     ("የትውልድ ቀን", "Date of Birth", (242, 169), (112, 105, 68)),
     ("ፆታ", "Sex", (242, 212), (75, 85, 65)),
-    ("የማብቂያ ቀን", "Date of Expiry", (242, 252), (68, 76, 58)),
-    ("ስልክ ቁጥር", "Phone Number", (698, 28), (92, 105, 80)),
+    ("የሚያበቃበት ቀን", "Date of Expiry", (242, 252), (68, 76, 58)),
+    ("ስልክ", "Phone Number", (698, 28), (92, 105, 80)),
     ("ዜግነት", "Nationality", (698, 73), (78, 90, 68)),
     ("አድራሻ", "Address", (698, 126), (50, 68, 52)),
 ]
@@ -218,7 +218,7 @@ def generate_final_id_image_b(
     expiry_date_greg = f"{today.year + 8:04d}/{mon_abbr}/{today.day:02d}"
     
     text_data["expiry_date"] = f"{expiry_eth_date} | {expiry_date_greg}"
-    text_data["nationality"] = "ኢትዮጵያ | Ethiopia"
+    text_data["nationality"] = "ኢትዮጵያዊ | Ethiopian"
 
     # 5️⃣ Draw text fields
     for key, field in TEMPLATE_B_FIELDS.items():
